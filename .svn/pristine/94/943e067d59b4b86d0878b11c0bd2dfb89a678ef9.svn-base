@@ -1,0 +1,43 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.concurrent.TimeUnit;
+
+public class ClientHandler implements Runnable {
+    private Socket client;
+    private BufferedReader in;
+    private PrintWriter out;
+
+    public ClientHandler(Socket clientSocket, BufferedReader in) throws IOException {
+        this.client = clientSocket;
+        this.in = in;
+        out = new PrintWriter(client.getOutputStream());
+    }
+
+    @Override
+    public void run() {
+        BufferedReader receiver = new BufferedReader(in);
+        String str;
+        try {
+            str = receiver.readLine();
+            System.out.println("client: " + str);
+            TimeUnit.SECONDS.sleep(5);
+            out.println("yes");
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                in.close();
+                client.close();
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
