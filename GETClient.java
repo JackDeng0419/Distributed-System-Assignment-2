@@ -18,9 +18,7 @@ public class GETClient {
     public static void main(String[] args) throws IOException {
 
         // receive user input
-        Scanner myObj = new Scanner(System.in); 
-        System.out.println("Enter the URL: ");
-        String URL = myObj.nextLine(); 
+        String URL = args[0]; 
 
         // get the domain and port
         String[] domainPort = URL.split(":", 2);

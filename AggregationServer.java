@@ -4,18 +4,24 @@ import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.PriorityBlockingQueue;
 
 public class AggregationServer {
 
     private static final int PORT = 9090;
+    private static final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
     private static ArrayList<ClientHandler> clients = new ArrayList<>();
     private static ArrayList<ContentServerHandler> contentServers = new ArrayList<>();
-    private static ExecutorService pool = Executors.newFixedThreadPool(4);
+    private static ExecutorService pool = Executors.newFixedThreadPool(5);
 
     public static void main(String[] args) throws IOException, InterruptedException {
         ServerSocket listener = new ServerSocket(PORT);
+        PriorityBlockingQueue<Message> priorityQueue = new PriorityBlockingQueue<Message>(20, new MessageComparator());
+        FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME);
+        pool.execute(fileHandler);
 
         while (true) {
             Socket client = listener.accept();
@@ -31,8 +37,9 @@ public class AggregationServer {
                     pool.execute(clientThread);
                     break;
                 case "/putContent":
-                    System.out.println("content connected");
-                    ContentServerHandler contentServerHandler = new ContentServerHandler(client);
+                    System.out.println("content server connected");
+                    ContentServerHandler contentServerHandler = new ContentServerHandler(client,
+                            priorityQueue);
                     contentServers.add(contentServerHandler);
                     pool.execute(contentServerHandler);
                     break;
@@ -42,5 +49,18 @@ public class AggregationServer {
 
         }
 
+    }
+}
+
+/**
+ * Comparator for the priority queue
+ */
+class MessageComparator implements Comparator<Message> {
+    public int compare(Message m1, Message m2) {
+        if (m1.operationType < m2.operationType)
+            return 1;
+        else if (m1.operationType > m2.operationType)
+            return -1;
+        return 0;
     }
 }

@@ -1,12 +1,17 @@
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.util.Scanner;
 
 /**
- * contentServer 
+ * contentServer
  */
 public class ContentServer {
     private static String SERVER_IP;
@@ -14,23 +19,43 @@ public class ContentServer {
 
     public static void main(String[] args) throws IOException {
         // receive user input
-        Scanner myObj = new Scanner(System.in);
-        System.out.println("Enter the URL: ");
-        String URL = myObj.nextLine();
+        String URL = args[0];
+        String filename = args[1];
 
         // get the domain and port
         String[] domainPort = URL.split(":", 2);
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
-        Socket server = new Socket(SERVER_IP, SERVER_PORT);
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
 
-        // sending the put request
-        PrintWriter out = new PrintWriter(server.getOutputStream());
-        out.println("PUT /putContent HTTP/1.1");
-        out.println("Host: 127.0.0.1:9090");
-        out.println("Accept: */*");
-        out.flush();
+        Socket server = new Socket(SERVER_IP, SERVER_PORT);
+        OutputStream out = server.getOutputStream();
+
+        try {
+            File file = new File(filename);
+            byte[] myByteArray = new byte[(int) file.length()];
+
+            // turn the file input stream into buffered input stream
+            fis = new FileInputStream(file);
+            bis = new BufferedInputStream(fis);
+
+            // read the file content into myByteArray
+            bis.read(myByteArray, 0, myByteArray.length);
+            System.out.println("Sending " + filename + "(" + myByteArray.length + " bytes) to the Aggregation Server.");
+
+            // write the PUT header
+            out.write("PUT /putContent HTTP/1.1\n".getBytes(Charset.forName("UTF-8")));
+            out.write("Host: 127.0.0.1:9090\n".getBytes(Charset.forName("UTF-8")));
+            out.write("Accept: */*\n".getBytes(Charset.forName("UTF-8")));
+
+            // output the myByteArray to the aggregation server
+            out.write(myByteArray, 0, myByteArray.length);
+            out.flush();
+        } catch (Exception e) {
+            System.out.println("error: " + e);
+        }
 
         // receiving the response from the aggregation server
         InputStreamReader in = new InputStreamReader(server.getInputStream());
@@ -39,6 +64,7 @@ public class ContentServer {
         while ((str = receiver.readLine()) != null) {
             System.out.println(str);
         }
+        server.close();
     }
 
 }
