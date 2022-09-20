@@ -6,7 +6,7 @@ import java.net.Socket;
 import java.util.Scanner;
 
 /**
- * contentServer
+ * contentServer 
  */
 public class ContentServer {
     private static String SERVER_IP;
