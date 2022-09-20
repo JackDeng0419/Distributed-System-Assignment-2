@@ -28,7 +28,8 @@ public class FileHandler implements Runnable {
                     System.out.println("content server disconnected.");
                 } else if (message.operationType == 1) {
                     // construct the XML file
-                    System.out.println("Constructing the XML file.");
+                    System.out.println("Writing the XML file...");
+
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();

@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Scanner;
+import java.util.UUID;
 
 /**
  * contentServer
@@ -16,8 +17,12 @@ import java.util.Scanner;
 public class ContentServer {
     private static String SERVER_IP;
     private static int SERVER_PORT;
+    private static UUID uuid;
 
     public static void main(String[] args) throws IOException {
+        // generate an unique id for this content server
+        uuid = UUID.randomUUID();
+
         // receive user input
         String URL = args[0];
         String filename = args[1];
@@ -49,6 +54,7 @@ public class ContentServer {
             out.write("PUT /putContent HTTP/1.1\n".getBytes(Charset.forName("UTF-8")));
             out.write("Host: 127.0.0.1:9090\n".getBytes(Charset.forName("UTF-8")));
             out.write("Accept: */*\n".getBytes(Charset.forName("UTF-8")));
+            out.write(("ContentServerId: " + uuid.toString() + "\n").getBytes(Charset.forName("UTF-8")));
 
             // output the myByteArray to the aggregation server
             out.write(myByteArray, 0, myByteArray.length);

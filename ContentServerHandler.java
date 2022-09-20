@@ -1,7 +1,9 @@
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -29,6 +31,14 @@ public class ContentServerHandler implements Runnable {
 
         try {
 
+            // receiving the response from the aggregation server
+            InputStreamReader in = new InputStreamReader(contentServer.getInputStream());
+            BufferedReader receiver = new BufferedReader(in);
+            String str = "";
+            while ((str = receiver.readLine()) != null) {
+                System.out.println(str);
+            }
+
             // read the feed content and push into ATOMFeed.txt
             Message message = new Message(1, "123456", "payload 1".getBytes(Charset.forName("UTF-8")));
 
@@ -42,6 +52,8 @@ public class ContentServerHandler implements Runnable {
             printWriter.flush();
 
             System.out.println("Done");
+        } catch (IOException e) {
+            e.printStackTrace();
         } finally {
             try {
                 out.close();

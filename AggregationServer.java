@@ -25,8 +25,11 @@ public class AggregationServer {
 
         while (true) {
             Socket client = listener.accept();
+
             BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+            in.mark(1);
             String request = in.readLine();
+            in.reset();
             String[] requestInfo = request.split(" ", 3);
 
             switch (requestInfo[1]) {
