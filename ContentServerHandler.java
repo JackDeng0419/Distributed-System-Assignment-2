@@ -28,6 +28,9 @@ public class ContentServerHandler implements Runnable {
     public void run() {
 
         int fileSize = 1024;
+        int lineNumber = 0;
+        String contentServerId = "";
+        byte[] payload;
 
         try {
 
@@ -35,12 +38,21 @@ public class ContentServerHandler implements Runnable {
             InputStreamReader in = new InputStreamReader(contentServer.getInputStream());
             BufferedReader receiver = new BufferedReader(in);
             String str = "";
+            String payloadString = "";
             while ((str = receiver.readLine()) != null) {
-                System.out.println(str);
-            }
+                lineNumber++;
 
-            // read the feed content and push into ATOMFeed.txt
-            Message message = new Message(1, "123456", "payload 1".getBytes(Charset.forName("UTF-8")));
+                // the first line will be the content server id
+                if (lineNumber == 1) {
+                    contentServerId = str.split(":", 2)[1];
+                } else {
+                    payloadString += str;
+                }
+            }
+            payload = payloadString.getBytes(Charset.forName("UTF-8"));
+
+            // construct the message object and add it to the queue
+            Message message = new Message(GeneralDefinition.PUT_FEED, contentServerId, payload);
 
             System.out.println("Saving new content to " + FILE_PATH_NAME.substring(2) + "(" + fileSize + " bytes)");
 

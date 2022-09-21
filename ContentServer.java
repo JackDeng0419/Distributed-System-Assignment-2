@@ -54,7 +54,7 @@ public class ContentServer {
             out.write("PUT /putContent HTTP/1.1\n".getBytes(Charset.forName("UTF-8")));
             out.write("Host: 127.0.0.1:9090\n".getBytes(Charset.forName("UTF-8")));
             out.write("Accept: */*\n".getBytes(Charset.forName("UTF-8")));
-            out.write(("ContentServerId: " + uuid.toString() + "\n").getBytes(Charset.forName("UTF-8")));
+            out.write(("ContentServerId:" + uuid.toString() + "\n").getBytes(Charset.forName("UTF-8")));
 
             // output the myByteArray to the aggregation server
             out.write(myByteArray, 0, myByteArray.length);
