@@ -33,7 +33,6 @@ public class ContentServerHandler implements Runnable {
         byte[] payload;
 
         try {
-
             // receiving the response from the aggregation server
             InputStreamReader in = new InputStreamReader(contentServer.getInputStream());
             BufferedReader receiver = new BufferedReader(in);
@@ -45,18 +44,24 @@ public class ContentServerHandler implements Runnable {
                 // the first line will be the content server id
                 if (lineNumber == 1) {
                     contentServerId = str.split(":", 2)[1];
+                    System.out.println(contentServerId);
                 } else {
+                    System.out.println(str);
                     payloadString += str;
                 }
             }
             payload = payloadString.getBytes(Charset.forName("UTF-8"));
+
+            System.out.println(payload.toString());
 
             // construct the message object and add it to the queue
             Message message = new Message(GeneralDefinition.PUT_FEED, contentServerId, payload);
 
             System.out.println("Saving new content to " + FILE_PATH_NAME.substring(2) + "(" + fileSize + " bytes)");
 
-            priorityQueue.add(message);
+            priorityQueue.put(message);
+            // priorityQueue.notifyAll();
+            Thread.sleep(100);
 
             // output the myByteArray to the content server
             PrintWriter printWriter = new PrintWriter(out);
@@ -65,6 +70,8 @@ public class ContentServerHandler implements Runnable {
 
             System.out.println("Done");
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
             try {

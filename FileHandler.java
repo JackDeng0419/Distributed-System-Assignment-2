@@ -23,6 +23,9 @@ public class FileHandler implements Runnable {
             Message message;
             try {
                 message = priorityQueue.take();
+                System.out.println("operation type: " + message.operationType);
+                System.out.println("content server id: " + message.contentServerId);
+                System.out.println("payload: " + message.payload.toString());
                 if (message.operationType == 99) {
                     // content server disconnected
                     System.out.println("content server disconnected.");
