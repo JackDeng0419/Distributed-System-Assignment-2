@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -33,32 +34,47 @@ public class ContentServer {
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
         FileInputStream fis = null;
-        BufferedInputStream bis = null;
 
         Socket server = new Socket(SERVER_IP, SERVER_PORT);
-        OutputStream out = server.getOutputStream();
+        DataOutputStream out = new DataOutputStream(server.getOutputStream());
 
         try {
-            File file = new File(filename);
-            byte[] myByteArray = new byte[(int) file.length()];
 
             // turn the file input stream into buffered input stream
-            fis = new FileInputStream(file);
-            bis = new BufferedInputStream(fis);
 
             // read the file content into myByteArray
-            bis.read(myByteArray, 0, myByteArray.length);
-            System.out.println("Sending " + filename + "(" + myByteArray.length + " bytes) to the Aggregation Server.");
 
             // write the PUT header
-            out.write("PUT /putContent HTTP/1.1\n".getBytes(Charset.forName("UTF-8")));
-            out.write("Host: 127.0.0.1:9090\n".getBytes(Charset.forName("UTF-8")));
-            out.write("Accept: */*\n".getBytes(Charset.forName("UTF-8")));
-            out.write(("ContentServerId:" + uuid.toString() + "\n").getBytes(Charset.forName("UTF-8")));
+            String headerFirstLine = "PUT /putContent HTTP/1.1";
+            String headerSecondLine = "Host: 127.0.0.1:9090";
+            String headerThirdLine = "Accept: */*";
+            byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+            byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
+            byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
+
+            out.writeInt(headerFirstLineByte.length);
+            out.write(headerFirstLineByte);
+            out.writeInt(headerSecondLineByte.length);
+            out.write(headerSecondLineByte);
+            out.writeInt(headerThirdLineByte.length);
+            out.write(headerThirdLineByte);
+
+            // write content server id
+            String contentServerId = uuid.toString();
+            byte[] contentServerIdByte = contentServerId.getBytes(Charset.forName("UTF-8"));
+
+            out.writeInt(contentServerIdByte.length);
+            out.write(contentServerIdByte);
+
+            // write feed content
+            File file = new File(filename);
+            fis = new FileInputStream(file);
+            byte[] feedContentByte = new byte[(int) file.length()];
+            fis.read(feedContentByte);
 
             // output the myByteArray to the aggregation server
-            out.write(myByteArray, 0, myByteArray.length);
-            out.flush();
+            out.writeInt(feedContentByte.length);
+            out.write(feedContentByte);
         } catch (Exception e) {
             System.out.println("error: " + e);
         }

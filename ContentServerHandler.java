@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,64 +16,52 @@ public class ContentServerHandler implements Runnable {
     private Socket contentServer;
     private OutputStream out;
     private PriorityBlockingQueue<Message> priorityQueue;
+    private DataInputStream dataInputStream;
     public final static String FILE_PATH_NAME = "./ATOMFeed.txt";
 
-    public ContentServerHandler(Socket contentServerSocket, PriorityBlockingQueue<Message> priorityQueue)
+    public ContentServerHandler(Socket contentServerSocket, PriorityBlockingQueue<Message> priorityQueue,
+            DataInputStream dataInputStream)
             throws IOException {
         this.contentServer = contentServerSocket;
         this.priorityQueue = priorityQueue;
+        this.dataInputStream = dataInputStream;
         out = contentServer.getOutputStream();
     }
 
     @Override
     public void run() {
-
-        int fileSize = 1024;
-        int lineNumber = 0;
-        String contentServerId = "";
+        String contentServerId;
         byte[] payload;
 
         try {
-            // receiving the response from the aggregation server
-            InputStreamReader in = new InputStreamReader(contentServer.getInputStream());
-            BufferedReader receiver = new BufferedReader(in);
-            String str = "";
-            String payloadString = "";
-            while ((str = receiver.readLine()) != null) {
-                lineNumber++;
+            // reading content server id
+            int contentServerIdByteLength = dataInputStream.readInt();
+            byte[] contentServerIdByte = new byte[contentServerIdByteLength];
+            dataInputStream.readFully(contentServerIdByte, 0, contentServerIdByteLength);
+            contentServerId = new String(contentServerIdByte);
 
-                // the first line will be the content server id
-                if (lineNumber == 1) {
-                    contentServerId = str.split(":", 2)[1];
-                    System.out.println(contentServerId);
-                } else {
-                    System.out.println(str);
-                    payloadString += str;
-                }
-            }
-            payload = payloadString.getBytes(Charset.forName("UTF-8"));
+            // reading payload
+            int payloadLength = dataInputStream.readInt();
+            payload = new byte[payloadLength];
+            dataInputStream.readFully(payload, 0, payloadLength);
 
+            // construct the message object
             System.out.println(payload.toString());
-
-            // construct the message object and add it to the queue
             Message message = new Message(GeneralDefinition.PUT_FEED, contentServerId, payload);
 
-            System.out.println("Saving new content to " + FILE_PATH_NAME.substring(2) + "(" + fileSize + " bytes)");
+            // add message to the priority queue
+            priorityQueue.add(message);
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
 
-            priorityQueue.put(message);
-            // priorityQueue.notifyAll();
-            Thread.sleep(100);
-
+        try {
             // output the myByteArray to the content server
             PrintWriter printWriter = new PrintWriter(out);
             printWriter.println("New content is saved.");
             printWriter.flush();
 
             System.out.println("Done");
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         } finally {
             try {
                 out.close();

@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -21,18 +22,30 @@ public class AggregationServer {
         ServerSocket listener = new ServerSocket(PORT);
         PriorityBlockingQueue<Message> priorityQueue = new PriorityBlockingQueue<Message>(20, new MessageComparator());
         FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME);
-        pool.execute(fileHandler);
+        new Thread(fileHandler).start();
 
         while (true) {
             Socket client = listener.accept();
 
-            BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            in.mark(1);
-            String request = in.readLine();
-            in.reset();
-            String[] requestInfo = request.split(" ", 3);
+            DataInputStream dataInputStream = new DataInputStream(client.getInputStream());
 
-            switch (requestInfo[1]) {
+            // reading request type
+            int headerFirstLineByteLength = dataInputStream.readInt();
+            byte[] headerFirstLineByte = new byte[headerFirstLineByteLength];
+            dataInputStream.readFully(headerFirstLineByte, 0, headerFirstLineByteLength);
+            String headerFirstLine = new String(headerFirstLineByte);
+            String[] requestTypeInfo = headerFirstLine.split(" ", 3);
+
+            // reading second and third header lines
+            int headerSecondLineByteLength = dataInputStream.readInt();
+            byte[] headerSecondLineByte = new byte[headerSecondLineByteLength];
+            dataInputStream.readFully(headerSecondLineByte, 0, headerSecondLineByteLength);
+
+            int headerThirdLineByteLength = dataInputStream.readInt();
+            byte[] headerThirdLineByte = new byte[headerThirdLineByteLength];
+            dataInputStream.readFully(headerThirdLineByte, 0, headerThirdLineByteLength);
+
+            switch (requestTypeInfo[1]) {
                 case "/getFeed":
                     System.out.println("client connected");
                     ClientHandler clientThread = new ClientHandler(client);
@@ -42,7 +55,7 @@ public class AggregationServer {
                 case "/putContent":
                     System.out.println("content server connected");
                     ContentServerHandler contentServerHandler = new ContentServerHandler(client,
-                            priorityQueue);
+                            priorityQueue, dataInputStream);
                     contentServers.add(contentServerHandler);
                     pool.execute(contentServerHandler);
                     break;

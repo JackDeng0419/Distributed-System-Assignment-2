@@ -1,3 +1,12 @@
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.PriorityBlockingQueue;
 
 public class FileHandler implements Runnable {
@@ -19,24 +28,32 @@ public class FileHandler implements Runnable {
         // e.printStackTrace();
         // }
         // }
-        while (true) {
-            Message message;
-            try {
-                message = priorityQueue.take();
-                System.out.println("operation type: " + message.operationType);
-                System.out.println("content server id: " + message.contentServerId);
-                System.out.println("payload: " + message.payload.toString());
-                if (message.operationType == 99) {
-                    // content server disconnected
-                    System.out.println("content server disconnected.");
-                } else if (message.operationType == 1) {
-                    // construct the XML file
-                    System.out.println("Writing the XML file...");
 
+        Message message;
+        File outputFile = new File("ATOMFeed.txt");
+        try (FileOutputStream os = new FileOutputStream(outputFile, true)) {
+            while (true) {
+                try {
+                    message = priorityQueue.take();
+
+                    if (message.operationType == 99) {
+                        // content server disconnected
+                        System.out.println("content server disconnected.");
+                    } else if (message.operationType == 1) {
+                        // construct the XML file
+                        System.out.println("Writing the XML file...");
+                        os.write((message.contentServerId + "\n").getBytes(Charset.forName("UTF-8")));
+                        os.write(message.payload);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
     }
 }

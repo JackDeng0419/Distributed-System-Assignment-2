@@ -1,23 +1,19 @@
-<?xml version='1.0' encoding='iso-8859-1' ?>
-<feed xml:lang="en-US" xmlns="http://www.w3.org/2005/Atom">
-        <title>Fishing Reports</title>
-        <subtitle>The latest reports from fishinhole.com</subtitle>
-        <link href="http://www.fishinhole.com/reports" rel="self"/>
-        <updated>2015-07-03T16:19:54-05:00</updated>
-        <author>
-                <name>NameOfYourBoss</name>
-                <email>nameofyourboss@fishinhole.com</email>
-        </author>
-        <id>tag:fishinhole.com,2008:http://www.fishinhole.com/reports</id>
-        <entry>
-                <title>Speckled Trout In Old River</title>
-                <link type='text/html' href='http://www.fishinhole.com/reports/report.php?id=4'/>
-                <id>tag:fishinhole.com,2008:http://www.fishinhole.com/reports/report.php?id=4</id>
-                <updated>2009-05-03T04:59:00-05:00</updated>
-                <author>
-                        <name>ReelHooked</name>
-                </author>
-                <summary>Limited out by noon</summary>
-        </entry>
-        ...
-</feed>
+245b6b0c-e684-4146-aa09-ddfb258cc41c
+title:My example feed
+subtitle:for demonstration purposes
+link:www.cs.adelaide.edu.au
+updated:2015-08-07T18:30:02Z
+author:Santa Claus
+id:urn::uuid:60a76c80-d399-11d9-b93C-0003939e0af6
+entry
+title:Nick sets assignment
+link:www.cs.adelaide.edu.au/users/third/ds/
+id:urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a
+updated:2015-08-07T18:30:02Z
+summary:here is some plain text. Because I'm not completely evil, you can assume that this will always be less than 1000 characters. And, as I've said before, it will always be plain text.
+entry
+title:second feed entry
+link:www.cs.adelaide.edu.au/users/third/ds/14ds2s1
+id:urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6b
+updated:2015-08-07T18:29:02Z
+summary:here's another summary entry which a reader would normally use to work out if they wanted to read some more. It's quite handy.
