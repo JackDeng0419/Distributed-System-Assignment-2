@@ -44,10 +44,9 @@ public class FileHandler implements Runnable {
                         System.out.println("Writing the file...");
                         os.write(("<" + message.contentServerId + ">" + "\n").getBytes(Charset.forName("UTF-8")));
                         os.write(message.payload);
-                        os.write(("\n<" + message.contentServerId + ">" + "\n").getBytes(Charset.forName("UTF-8")));
+                        os.write(("<" + message.contentServerId + ">" + "\n").getBytes(Charset.forName("UTF-8")));
 
                         // construct the XML file based on the txt file
-
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();

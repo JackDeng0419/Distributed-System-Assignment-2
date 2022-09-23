@@ -38,6 +38,8 @@ public class XMLCreator {
 
             // Create the root node
             Element feedElement = document.createElement("feed");
+            feedElement.setAttribute("xml:lang", "en-US");
+            feedElement.setAttribute("xmlns", "http://www.w3.org/2005/Ato");
 
             // Create a feed object
             Feed feed = new Feed(inputFile);
@@ -52,7 +54,7 @@ public class XMLCreator {
              * Generate the XML file
              */
 
-            FileOutputStream outputFile = new FileOutputStream(xmlFilename + ".xml");
+            FileOutputStream outputFile = new FileOutputStream("ContentServerXML/" + xmlFilename + ".xml");
             writeXML(document, outputFile);
 
             return (xmlFilename + ".xml");
@@ -67,8 +69,11 @@ public class XMLCreator {
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer = transformerFactory.newTransformer();
 
-        // Set the output intent to true
+        // Set the output property
+        document.setXmlStandalone(true);
+        transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "");
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty(OutputKeys.ENCODING, "iso-8859-1");
 
         // transform the DOM tree to the XML
         transformer.transform(new DOMSource(document), new StreamResult(outputFile));
@@ -112,41 +117,45 @@ public class XMLCreator {
         for (FeedEntry feedEntry : entries) {
             Element entryElement = document.createElement("entry");
 
-            // create the entry's title
-            Element entryTitleElement = document.createElement("title");
-            entryTitleElement.setTextContent(feedEntry.getTitle());
-            entryElement.appendChild(entryTitleElement);
-
-            // create the entry's link
-            Element entryLinkElement = document.createElement("link");
-            entryLinkElement.setTextContent(feedEntry.getLink());
-            entryElement.appendChild(entryLinkElement);
-
-            // create the entry's id
-            Element entryIdElement = document.createElement("id");
-            entryIdElement.setTextContent(feedEntry.getId());
-            entryElement.appendChild(entryIdElement);
-
-            // create the entry's updated
-            Element entryUpdatedElement = document.createElement("updated");
-            entryUpdatedElement.setTextContent(feedEntry.getUpdated());
-            entryElement.appendChild(entryUpdatedElement);
-
-            // create the entry's author
-            if (feedEntry.getAuthor() != null) {
-                Element entryAuthorElement = document.createElement("author");
-                Element entryAuthorNameElement = document.createElement("name");
-                entryAuthorNameElement.setTextContent(feedEntry.getAuthor());
-                entryAuthorElement.appendChild(entryAuthorNameElement);
-                entryElement.appendChild(entryAuthorElement);
-            }
-
-            // create the entry's summary
-            Element entrySummaryElement = document.createElement("summary");
-            entrySummaryElement.setTextContent(feedEntry.getSummary());
-            entryElement.appendChild(entrySummaryElement);
+            appendFeedEntry(document, entryElement, feedEntry);
 
             feedElement.appendChild(entryElement);
         }
+    }
+
+    private static void appendFeedEntry(Document document, Element entryElement, FeedEntry feedEntry) {
+        // create the entry's title
+        Element entryTitleElement = document.createElement("title");
+        entryTitleElement.setTextContent(feedEntry.getTitle());
+        entryElement.appendChild(entryTitleElement);
+
+        // create the entry's link
+        Element entryLinkElement = document.createElement("link");
+        entryLinkElement.setTextContent(feedEntry.getLink());
+        entryElement.appendChild(entryLinkElement);
+
+        // create the entry's id
+        Element entryIdElement = document.createElement("id");
+        entryIdElement.setTextContent(feedEntry.getId());
+        entryElement.appendChild(entryIdElement);
+
+        // create the entry's updated
+        Element entryUpdatedElement = document.createElement("updated");
+        entryUpdatedElement.setTextContent(feedEntry.getUpdated());
+        entryElement.appendChild(entryUpdatedElement);
+
+        // create the entry's author
+        if (feedEntry.getAuthor() != null) {
+            Element entryAuthorElement = document.createElement("author");
+            Element entryAuthorNameElement = document.createElement("name");
+            entryAuthorNameElement.setTextContent(feedEntry.getAuthor());
+            entryAuthorElement.appendChild(entryAuthorNameElement);
+            entryElement.appendChild(entryAuthorElement);
+        }
+
+        // create the entry's summary
+        Element entrySummaryElement = document.createElement("summary");
+        entrySummaryElement.setTextContent(feedEntry.getSummary());
+        entryElement.appendChild(entrySummaryElement);
     }
 }

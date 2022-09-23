@@ -34,16 +34,16 @@ public class ContentServer {
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
-        Socket server = new Socket(SERVER_IP, SERVER_PORT);
-        DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
-
         while (true) {
             // receive filename from user input
             Scanner filenameScanner = new Scanner(System.in);
             System.out.println("Enter filename (press enter will upload the file): ");
             String filename = filenameScanner.nextLine();
-            URLScanner.close();
-            filenameScanner.close();
+            // URLScanner.close();
+            // filenameScanner.close();
+
+            Socket server = new Socket(SERVER_IP, SERVER_PORT);
+            DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
 
             FileInputStream fis = null;
 
@@ -81,10 +81,12 @@ public class ContentServer {
                 // create the xml file from the input file
                 Feed feed = new Feed(inputFile);
 
-                XMLCreator.createXML(inputFile, contentServerId);
+                String xMLFilename = XMLCreator.createXML(inputFile, contentServerId);
 
-                fis = new FileInputStream(inputFile);
-                byte[] feedContentByte = new byte[(int) inputFile.length()];
+                // read the XML file
+                File xMLFile = new File("ContentServerXML/" + xMLFilename);
+                fis = new FileInputStream(xMLFile);
+                byte[] feedContentByte = new byte[(int) xMLFile.length()];
                 fis.read(feedContentByte);
 
                 // output the myByteArray to the aggregation server
@@ -99,16 +101,10 @@ public class ContentServer {
                     System.out.println(str);
                 }
                 fis.close();
-
+                dataOutputStream.close();
             } catch (Exception e) {
                 System.out.println("error: " + e);
             }
-
-            // receive filename from user input
-            filenameScanner = new Scanner(System.in);
-            System.out.println("Enter filename (press enter will upload the file): ");
-            filename = filenameScanner.nextLine();
-            filenameScanner.close();
         }
     }
 

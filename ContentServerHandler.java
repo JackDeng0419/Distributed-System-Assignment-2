@@ -55,21 +55,21 @@ public class ContentServerHandler implements Runnable {
             e1.printStackTrace();
         }
 
-        try {
-            // output the myByteArray to the content server
-            PrintWriter printWriter = new PrintWriter(out);
-            printWriter.println("New content is saved.");
-            printWriter.flush();
+        // output the myByteArray to the content server
+        PrintWriter printWriter = new PrintWriter(out);
+        printWriter.println("New content is saved.");
+        printWriter.flush();
 
-            System.out.println("Done");
-        } finally {
-            try {
-                out.close();
-                contentServer.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        System.out.println("Done");
+
+        try {
+            out.close();
+            dataInputStream.close();
+            contentServer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
     }
 
 }

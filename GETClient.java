@@ -1,8 +1,10 @@
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.util.Scanner;
 
 /**
@@ -28,11 +30,23 @@ public class GETClient {
         Socket server = new Socket(SERVER_IP, SERVER_PORT);
 
         // sending the get request
-        PrintWriter out = new PrintWriter(server.getOutputStream());
-        out.println("GET /getFeed HTTP/1.1");
-        out.println("Host: 127.0.0.1:9090");
-        out.println("Accept: application/xml");
-        out.flush();
+        DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
+
+
+        // write the GET header
+        String headerFirstLine = "GET /getFeed HTTP/1.1";
+        String headerSecondLine = "Host: 127.0.0.1:9090";
+        String headerThirdLine = "Accept: application/xml";
+        byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+        byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
+        byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
+
+        dataOutputStream.writeInt(headerFirstLineByte.length);
+        dataOutputStream.write(headerFirstLineByte);
+        dataOutputStream.writeInt(headerSecondLineByte.length);
+        dataOutputStream.write(headerSecondLineByte);
+        dataOutputStream.writeInt(headerThirdLineByte.length);
+        dataOutputStream.write(headerThirdLineByte);
 
         // receiving the response from the aggregation server
         InputStreamReader in = new InputStreamReader(server.getInputStream());
