@@ -20,73 +20,96 @@ public class ContentServer {
     private static int SERVER_PORT;
     private static UUID uuid;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         // generate an unique id for this content server
         uuid = UUID.randomUUID();
 
-        // receive user input
-        String URL = args[0];
-        String filename = args[1];
+        // receive URL from user input
+        Scanner URLScanner = new Scanner(System.in);
+        System.out.println("Enter URL: ");
+        String URL = URLScanner.nextLine();
 
         // get the domain and port
         String[] domainPort = URL.split(":", 2);
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
-        FileInputStream fis = null;
-
         Socket server = new Socket(SERVER_IP, SERVER_PORT);
-        DataOutputStream out = new DataOutputStream(server.getOutputStream());
+        DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
 
-        try {
+        while (true) {
+            // receive filename from user input
+            Scanner filenameScanner = new Scanner(System.in);
+            System.out.println("Enter filename (press enter will upload the file): ");
+            String filename = filenameScanner.nextLine();
+            URLScanner.close();
+            filenameScanner.close();
 
-            // turn the file input stream into buffered input stream
+            FileInputStream fis = null;
 
-            // read the file content into myByteArray
+            try {
 
-            // write the PUT header
-            String headerFirstLine = "PUT /putContent HTTP/1.1";
-            String headerSecondLine = "Host: 127.0.0.1:9090";
-            String headerThirdLine = "Accept: */*";
-            byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
-            byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
-            byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
+                // turn the file input stream into buffered input stream
 
-            out.writeInt(headerFirstLineByte.length);
-            out.write(headerFirstLineByte);
-            out.writeInt(headerSecondLineByte.length);
-            out.write(headerSecondLineByte);
-            out.writeInt(headerThirdLineByte.length);
-            out.write(headerThirdLineByte);
+                // read the file content into myByteArray
 
-            // write content server id
-            String contentServerId = uuid.toString();
-            byte[] contentServerIdByte = contentServerId.getBytes(Charset.forName("UTF-8"));
+                // write the PUT header
+                String headerFirstLine = "PUT /putContent HTTP/1.1";
+                String headerSecondLine = "Host: 127.0.0.1:9090";
+                String headerThirdLine = "Accept: */*";
+                byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+                byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
+                byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
 
-            out.writeInt(contentServerIdByte.length);
-            out.write(contentServerIdByte);
+                dataOutputStream.writeInt(headerFirstLineByte.length);
+                dataOutputStream.write(headerFirstLineByte);
+                dataOutputStream.writeInt(headerSecondLineByte.length);
+                dataOutputStream.write(headerSecondLineByte);
+                dataOutputStream.writeInt(headerThirdLineByte.length);
+                dataOutputStream.write(headerThirdLineByte);
 
-            // write feed content
-            File file = new File(filename);
-            fis = new FileInputStream(file);
-            byte[] feedContentByte = new byte[(int) file.length()];
-            fis.read(feedContentByte);
+                // write content server id
+                String contentServerId = uuid.toString();
+                byte[] contentServerIdByte = contentServerId.getBytes(Charset.forName("UTF-8"));
 
-            // output the myByteArray to the aggregation server
-            out.writeInt(feedContentByte.length);
-            out.write(feedContentByte);
-        } catch (Exception e) {
-            System.out.println("error: " + e);
+                dataOutputStream.writeInt(contentServerIdByte.length);
+                dataOutputStream.write(contentServerIdByte);
+
+                // write feed content
+                File inputFile = new File(filename);
+
+                // create the xml file from the input file
+                Feed feed = new Feed(inputFile);
+
+                XMLCreator.createXML(inputFile, contentServerId);
+
+                fis = new FileInputStream(inputFile);
+                byte[] feedContentByte = new byte[(int) inputFile.length()];
+                fis.read(feedContentByte);
+
+                // output the myByteArray to the aggregation server
+                dataOutputStream.writeInt(feedContentByte.length);
+                dataOutputStream.write(feedContentByte);
+
+                // receiving the response from the aggregation server
+                InputStreamReader in = new InputStreamReader(server.getInputStream());
+                BufferedReader receiver = new BufferedReader(in);
+                String str = "";
+                while ((str = receiver.readLine()) != null) {
+                    System.out.println(str);
+                }
+                fis.close();
+
+            } catch (Exception e) {
+                System.out.println("error: " + e);
+            }
+
+            // receive filename from user input
+            filenameScanner = new Scanner(System.in);
+            System.out.println("Enter filename (press enter will upload the file): ");
+            filename = filenameScanner.nextLine();
+            filenameScanner.close();
         }
-
-        // receiving the response from the aggregation server
-        InputStreamReader in = new InputStreamReader(server.getInputStream());
-        BufferedReader receiver = new BufferedReader(in);
-        String str = "";
-        while ((str = receiver.readLine()) != null) {
-            System.out.println(str);
-        }
-        server.close();
     }
 
 }
