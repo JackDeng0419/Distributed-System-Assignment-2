@@ -62,7 +62,8 @@ public class FileHandler implements Runnable {
 
                         // construct the XML file based on the feed queue
                         System.out.println("Writing the file...");
-                        os.write(message.payload);
+                        // os.write(message.payload);
+                        XMLCreator.createXML(feedQueue);
 
                         // construct the XML file based on the txt file
                     }

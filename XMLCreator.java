@@ -77,8 +77,8 @@ public class XMLCreator {
         DocumentBuilder builder;
         try {
             builder = factory.newDocumentBuilder();
-            Document document = builder.parse(inputFile);
-            Node root = document.getFirstChild();
+            Document document = builder.newDocument();
+            Element root = document.createElement("feeds");
 
             /*
              * Construct the XML DOM tree
@@ -101,10 +101,22 @@ public class XMLCreator {
              * Generate the XML file
              */
 
-            FileOutputStream outputFile = new FileOutputStream(AggregationServerXML);
-            writeXML(document, outputFile);
+            document.appendChild(root);
 
-        } catch (ParserConfigurationException | TransformerException | SAXException | IOException e) {
+            // FileOutputStream outputFile = new FileOutputStream(AggregationServerXML);
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+
+            // Set the output property
+            document.setXmlStandalone(true);
+            transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "");
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty(OutputKeys.ENCODING, "iso-8859-1");
+
+            // transform the DOM tree to the XML
+            transformer.transform(new DOMSource(document), new StreamResult(inputFile));
+
+        } catch (ParserConfigurationException | TransformerException e) {
             e.printStackTrace();
         }
     }
