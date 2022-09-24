@@ -55,10 +55,13 @@ public class HeartBeatSender extends TimerTask {
             dataOutputStream.close();
             server.close();
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
+            System.out.println("E1");
         } catch (IOException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
+            System.out.println("Aggregation Server connection lost...");
         }
+
     }
 
 }
