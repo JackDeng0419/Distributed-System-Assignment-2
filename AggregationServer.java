@@ -4,25 +4,30 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
 
-import javax.naming.spi.StateFactory;
-
 public class AggregationServer {
 
-    private static final int PORT = 9090;
+    private static final int PORT = 4567;
     private static final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
     private static ArrayList<ClientHandler> clients = new ArrayList<>();
     private static ArrayList<ContentServerHandler> contentServers = new ArrayList<>();
     private static Deque<Feed> feedQueue = new LinkedList<Feed>();
     private static ExecutorService pool = Executors.newFixedThreadPool(5);
+    private static ConcurrentHashMap<String, Timestamp> contentServersMap = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws IOException, InterruptedException {
         ServerSocket listener = new ServerSocket(PORT);
@@ -30,7 +35,7 @@ public class AggregationServer {
         FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME, feedQueue);
         new Thread(fileHandler).start();
 
-        // TODO: Construct the feed Queue from the XML file 
+        // TODO: Construct the feed Queue from the XML file
 
         while (true) {
             Socket client = listener.accept();
@@ -63,9 +68,23 @@ public class AggregationServer {
                 case "/putContent":
                     System.out.println("content server connected");
                     ContentServerHandler contentServerHandler = new ContentServerHandler(client,
-                            priorityQueue, dataInputStream);
+                            priorityQueue, dataInputStream, contentServersMap, contentServersHeartBeatTimersMap, feedQueue, contentServersHeartBeatTimersMap);
                     contentServers.add(contentServerHandler);
                     pool.execute(contentServerHandler);
+                    break;
+                case "/putHeartBeat":
+                    System.out.println("content server heart beat");
+                    int contentServerIdByteLength = dataInputStream.readInt();
+                    byte[] contentServerIdByte = new byte[contentServerIdByteLength];
+                    dataInputStream.readFully(contentServerIdByte, 0, contentServerIdByteLength);
+                    String contentServerId = new String(contentServerIdByte);
+                    contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
+                    contentServersHeartBeatTimersMap.get(contentServerId).cancel();
+                    Timer timer = new Timer();
+                    timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
+                            contentServersHeartBeatTimersMap), 12000L);
+                    contentServersHeartBeatTimersMap.put(contentServerId, timer);
+                    dataInputStream.close();
                     break;
                 default:
                     break;

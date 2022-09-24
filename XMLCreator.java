@@ -90,6 +90,7 @@ public class XMLCreator {
                 Element feedElement = document.createElement("feed");
                 feedElement.setAttribute("xml:lang", "en-US");
                 feedElement.setAttribute("xmlns", "http://www.w3.org/2005/Ato");
+                feedElement.setAttribute("CSID", feed.getContentServerId());
 
                 // append child to the feed element
                 appendFeedChild(document, feedElement, feed);

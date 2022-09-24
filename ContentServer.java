@@ -10,7 +10,10 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Scanner;
+import java.util.Timer;
 import java.util.UUID;
+
+import javax.swing.text.StyledEditorKit.BoldAction;
 
 /**
  * contentServer
@@ -19,6 +22,7 @@ public class ContentServer {
     private static String SERVER_IP;
     private static int SERVER_PORT;
     private static UUID uuid;
+    private static boolean isFirstTimeSending = true;
 
     public static void main(String[] args) throws IOException, InterruptedException {
         // generate an unique id for this content server
@@ -103,6 +107,13 @@ public class ContentServer {
                 xMLFile.delete();
                 fis.close();
                 dataOutputStream.close();
+
+                if (isFirstTimeSending) {
+                    Timer timer = new Timer();
+                    timer.schedule(new HeartBeatSender(contentServerId, SERVER_IP, SERVER_PORT), 6000L, 9000L);
+                }
+
+                isFirstTimeSending = false;
             } catch (Exception e) {
                 System.out.println("error: " + e);
             }
