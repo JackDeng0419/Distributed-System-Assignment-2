@@ -82,6 +82,10 @@ public class Feed {
         this(inputFile, null);
     }
 
+    public Feed() {
+
+    }
+
     public String getContentServerId() {
         return contentServerId;
     }

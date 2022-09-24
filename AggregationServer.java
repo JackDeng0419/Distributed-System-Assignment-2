@@ -6,9 +6,14 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
+
+import javax.naming.spi.StateFactory;
 
 public class AggregationServer {
 
@@ -16,13 +21,16 @@ public class AggregationServer {
     private static final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
     private static ArrayList<ClientHandler> clients = new ArrayList<>();
     private static ArrayList<ContentServerHandler> contentServers = new ArrayList<>();
+    private static Deque<Feed> feedQueue = new LinkedList<Feed>();
     private static ExecutorService pool = Executors.newFixedThreadPool(5);
 
     public static void main(String[] args) throws IOException, InterruptedException {
         ServerSocket listener = new ServerSocket(PORT);
         PriorityBlockingQueue<Message> priorityQueue = new PriorityBlockingQueue<Message>(20, new MessageComparator());
-        FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME);
+        FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME, feedQueue);
         new Thread(fileHandler).start();
+
+        // TODO: Construct the feed Queue from the XML file 
 
         while (true) {
             Socket client = listener.accept();

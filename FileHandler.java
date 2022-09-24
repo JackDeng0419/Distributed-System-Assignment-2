@@ -7,16 +7,20 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Deque;
+import java.util.Queue;
 import java.util.concurrent.PriorityBlockingQueue;
 
 public class FileHandler implements Runnable {
 
     PriorityBlockingQueue<Message> priorityQueue;
     String aggregatedFilename;
+    Deque<Feed> feedQueue;
 
-    public FileHandler(PriorityBlockingQueue<Message> priorityQueue, String aggregatedFilename) {
+    public FileHandler(PriorityBlockingQueue<Message> priorityQueue, String aggregatedFilename, Deque<Feed> feedQueue) {
         this.priorityQueue = priorityQueue;
         this.aggregatedFilename = aggregatedFilename;
+        this.feedQueue = feedQueue;
     }
 
     @Override
@@ -30,7 +34,7 @@ public class FileHandler implements Runnable {
         // }
 
         Message message;
-        File outputFile = new File("ATOMFeed.txt");
+        File outputFile = new File("ATOMFeed.xml");
         try (FileOutputStream os = new FileOutputStream(outputFile, true)) {
             while (true) {
                 try {
@@ -40,11 +44,25 @@ public class FileHandler implements Runnable {
                         // content server disconnected
                         System.out.println("content server disconnected.");
                     } else if (message.operationType == 1) {
-                        // construct the XML file
+                        FileOutputStream tempXMLFileOutputStream = new FileOutputStream(
+                                "AggregationServerXML/" + message.contentServerId + ".xml");
+                        tempXMLFileOutputStream.write(message.payload);
+                        File tempXMLFile = new File("AggregationServerXML/" + message.contentServerId + ".xml");
+
+                        // parse the input XML file
+                        Feed feed = XMLParser.parseXMLFile(tempXMLFile);
+                        feed.setContentServerId(message.contentServerId);
+
+                        feedQueue.push(feed);
+
+                        // only keep the latest 20 feeds
+                        while (feedQueue.size() > 20) {
+                            feedQueue.pollLast();
+                        }
+
+                        // construct the XML file based on the feed queue
                         System.out.println("Writing the file...");
-                        os.write(("<" + message.contentServerId + ">" + "\n").getBytes(Charset.forName("UTF-8")));
                         os.write(message.payload);
-                        os.write(("<" + message.contentServerId + ">" + "\n").getBytes(Charset.forName("UTF-8")));
 
                         // construct the XML file based on the txt file
                     }

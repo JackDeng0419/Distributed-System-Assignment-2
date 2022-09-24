@@ -1,8 +1,11 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Queue;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -17,8 +20,12 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
 
 public class XMLCreator {
+
+    private static String AggregationServerXML = GeneralDefinition.AGGREGATION_SERVER_XML_FILENAME;
 
     public XMLCreator() {
 
@@ -29,6 +36,8 @@ public class XMLCreator {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder;
         try {
+            // Create a feed object
+            Feed feed = new Feed(inputFile);
             builder = factory.newDocumentBuilder();
             Document document = builder.newDocument();
 
@@ -41,9 +50,6 @@ public class XMLCreator {
             feedElement.setAttribute("xml:lang", "en-US");
             feedElement.setAttribute("xmlns", "http://www.w3.org/2005/Ato");
 
-            // Create a feed object
-            Feed feed = new Feed(inputFile);
-
             // append child to the feed element
             appendFeedChild(document, feedElement, feed);
 
@@ -54,7 +60,7 @@ public class XMLCreator {
              * Generate the XML file
              */
 
-            FileOutputStream outputFile = new FileOutputStream("ContentServerXML/" + xmlFilename + ".xml");
+            FileOutputStream outputFile = new FileOutputStream(xmlFilename + ".xml");
             writeXML(document, outputFile);
 
             return (xmlFilename + ".xml");
@@ -63,6 +69,44 @@ public class XMLCreator {
             return "Create XML failed";
         }
 
+    }
+
+    public static void createXML(Deque<Feed> feedQueue) {
+        File inputFile = new File(AggregationServerXML);
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        DocumentBuilder builder;
+        try {
+            builder = factory.newDocumentBuilder();
+            Document document = builder.parse(inputFile);
+            Node root = document.getFirstChild();
+
+            /*
+             * Construct the XML DOM tree
+             */
+
+            for (Feed feed : feedQueue) {
+
+                // Create the feed node
+                Element feedElement = document.createElement("feed");
+                feedElement.setAttribute("xml:lang", "en-US");
+                feedElement.setAttribute("xmlns", "http://www.w3.org/2005/Ato");
+
+                // append child to the feed element
+                appendFeedChild(document, feedElement, feed);
+
+                // append root node to the document
+                root.appendChild(feedElement);
+            }
+            /*
+             * Generate the XML file
+             */
+
+            FileOutputStream outputFile = new FileOutputStream(AggregationServerXML);
+            writeXML(document, outputFile);
+
+        } catch (ParserConfigurationException | TransformerException | SAXException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void writeXML(Document document, OutputStream outputFile) throws TransformerException {

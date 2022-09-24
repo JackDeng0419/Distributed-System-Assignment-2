@@ -79,12 +79,12 @@ public class ContentServer {
                 File inputFile = new File(filename);
 
                 // create the xml file from the input file
-                Feed feed = new Feed(inputFile);
+                // Feed feed = new Feed(inputFile);
 
                 String xMLFilename = XMLCreator.createXML(inputFile, contentServerId);
 
                 // read the XML file
-                File xMLFile = new File("ContentServerXML/" + xMLFilename);
+                File xMLFile = new File(xMLFilename);
                 fis = new FileInputStream(xMLFile);
                 byte[] feedContentByte = new byte[(int) xMLFile.length()];
                 fis.read(feedContentByte);
@@ -100,6 +100,7 @@ public class ContentServer {
                 while ((str = receiver.readLine()) != null) {
                     System.out.println(str);
                 }
+                xMLFile.delete();
                 fis.close();
                 dataOutputStream.close();
             } catch (Exception e) {

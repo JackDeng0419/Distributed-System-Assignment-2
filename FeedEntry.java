@@ -4,6 +4,7 @@ public class FeedEntry {
     private String id;
     private String updated;
     private String author;
+    private String summary;
 
     public String getAuthor() {
         return author;
@@ -13,7 +14,6 @@ public class FeedEntry {
         this.author = author;
     }
 
-    private String summary;
 
     public String getTitle() {
         return title;
