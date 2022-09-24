@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.DataInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -30,12 +31,22 @@ public class AggregationServer {
     private static ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        // TODO: Construct the feed Queue from the XML file
+        File aggregatedXML = new File(AGGREGATED_FILE_NAME);
+        feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
+        System.out.println(feedQueue.size());
+        for (Feed feed : feedQueue) {
+            contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
+            Timer timer = new Timer();
+            timer.schedule(new HeartBeatChecker(contentServersMap, feed.getContentServerId(), feedQueue,
+                    contentServersHeartBeatTimersMap), 12000L);
+            contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
+        }
+
         ServerSocket listener = new ServerSocket(PORT);
         PriorityBlockingQueue<Message> priorityQueue = new PriorityBlockingQueue<Message>(20, new MessageComparator());
         FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME, feedQueue);
         new Thread(fileHandler).start();
-
-        // TODO: Construct the feed Queue from the XML file
 
         while (true) {
             Socket client = listener.accept();
@@ -68,7 +79,8 @@ public class AggregationServer {
                 case "/putContent":
                     System.out.println("content server connected");
                     ContentServerHandler contentServerHandler = new ContentServerHandler(client,
-                            priorityQueue, dataInputStream, contentServersMap, contentServersHeartBeatTimersMap, feedQueue, contentServersHeartBeatTimersMap);
+                            priorityQueue, dataInputStream, contentServersMap, contentServersHeartBeatTimersMap,
+                            feedQueue, contentServersHeartBeatTimersMap);
                     contentServers.add(contentServerHandler);
                     pool.execute(contentServerHandler);
                     break;
