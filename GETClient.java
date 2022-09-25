@@ -45,7 +45,7 @@ public class GETClient {
 
         // write the GET header
         String headerFirstLine = "GET /getFeed HTTP/1.1";
-        String headerSecondLine = "Host: 127.0.0.1:9090";
+        String headerSecondLine = "Host: 127.0.0.1:4567";
         String headerThirdLine = "Accept: application/xml";
         byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
         byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));

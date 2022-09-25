@@ -1,3 +1,4 @@
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
@@ -26,7 +27,7 @@ public class HeartBeatSender extends TimerTask {
 
             // write the PUT header
             String headerFirstLine = "PUT /putHeartBeat HTTP/1.1";
-            String headerSecondLine = "Host: 127.0.0.1:9090";
+            String headerSecondLine = "Host: 127.0.0.1:4567";
             String headerThirdLine = "Accept: */*";
             byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
             byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
@@ -52,8 +53,16 @@ public class HeartBeatSender extends TimerTask {
             dataOutputStream.writeInt(heartBeatByte.length);
             dataOutputStream.write(heartBeatByte);
 
-            dataOutputStream.close();
-            server.close();
+            // receiving the response from the aggregation server
+            DataInputStream dataInputStream = new DataInputStream(server.getInputStream());
+            int responseFirstLineLength = dataInputStream.readInt();
+            byte[] responseFirstLineByte = new byte[responseFirstLineLength];
+            dataInputStream.readFully(responseFirstLineByte, 0, responseFirstLineLength);
+            String responseFirstLine = new String(responseFirstLineByte);
+            System.out.println(responseFirstLine);
+
+            // dataOutputStream.close();
+            // server.close();
         } catch (UnknownHostException e) {
             // e.printStackTrace();
             System.out.println("E1");

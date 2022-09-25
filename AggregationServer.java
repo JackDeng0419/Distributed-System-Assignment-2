@@ -1,10 +1,12 @@
 import java.io.BufferedReader;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,6 +71,15 @@ public class AggregationServer {
             byte[] headerThirdLineByte = new byte[headerThirdLineByteLength];
             dataInputStream.readFully(headerThirdLineByte, 0, headerThirdLineByteLength);
 
+            if (!requestTypeInfo[0].equals("GET") && !requestTypeInfo[0].equals("PUT")) {
+                DataOutputStream out = new DataOutputStream(client.getOutputStream());
+                String responseHeaderFirstLine = "HTTP/1.1 400 invalid request type";
+                byte[] responseHeaderFirstLineByte = responseHeaderFirstLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(responseHeaderFirstLineByte.length);
+                out.write(responseHeaderFirstLineByte);
+                continue;
+            }
+
             switch (requestTypeInfo[1]) {
                 case "/getFeed":
                     System.out.println("client connected");
@@ -91,12 +102,34 @@ public class AggregationServer {
                     dataInputStream.readFully(contentServerIdByte, 0, contentServerIdByteLength);
                     String contentServerId = new String(contentServerIdByte);
                     contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
-                    contentServersHeartBeatTimersMap.get(contentServerId).cancel();
-                    Timer timer = new Timer();
-                    timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                            contentServersHeartBeatTimersMap), 12000L);
-                    contentServersHeartBeatTimersMap.put(contentServerId, timer);
+                    if (contentServersHeartBeatTimersMap.get(contentServerId) == null) {
+                        Timer timer = new Timer();
+                        timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
+                                contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap.put(contentServerId, timer);
+                    } else {
+                        contentServersHeartBeatTimersMap.get(contentServerId).cancel();
+                        Timer timer = new Timer();
+                        timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
+                                contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap.put(contentServerId, timer);
+                    }
+
+                    DataOutputStream out = new DataOutputStream(client.getOutputStream());
+
+                    String responseHeaderFirstLine = "HTTP/1.1 200 OK";
+                    byte[] responseHeaderFirstLineByte = responseHeaderFirstLine.getBytes(Charset.forName("UTF-8"));
+                    out.writeInt(responseHeaderFirstLineByte.length);
+                    out.write(responseHeaderFirstLineByte);
+
+                    String responseHeaderSecondLine = "Heart beat signal received.";
+                    byte[] responseHeaderSecondLineByte = responseHeaderSecondLine.getBytes(Charset.forName("UTF-8"));
+                    out.writeInt(responseHeaderSecondLineByte.length);
+                    out.write(responseHeaderSecondLineByte);
+
                     dataInputStream.close();
+                    out.close();
+                    client.close();
                     break;
                 default:
                     break;

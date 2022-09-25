@@ -41,7 +41,7 @@ public class ClientHandler implements Runnable {
             System.out.println("Sending " + FILE_PATH_NAME.substring(2) + "(" + XMLByte.length + " bytes)");
 
             // write the GET response
-            String headerFirstLine = "HTTP/1.1 200 OK";
+            String headerFirstLine = "HTTP/1.1 201 OK";
             byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
             out.writeInt(headerFirstLineByte.length);
             out.write(headerFirstLineByte);

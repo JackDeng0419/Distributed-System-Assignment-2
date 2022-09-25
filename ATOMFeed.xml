@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <feeds>
-    <feed xmlns="http://www.w3.org/2005/Ato" CSID="996b6954-e472-4c9d-a0cd-521bd95ab9ec" xml:lang="en-US">
+    <feed xmlns="http://www.w3.org/2005/Ato" CSID="CS2" xml:lang="en-US">
         <title>My example feed</title>
         <subtitle>for demonstration purposes</subtitle>
         <link>www.cs.adelaide.edu.au</link>
@@ -24,7 +24,7 @@
             <summary>here's another summary entry which a reader would normally use to work out if they wanted to read some more. It's quite handy.</summary>
         </entry>
     </feed>
-    <feed xmlns="http://www.w3.org/2005/Ato" CSID="996b6954-e472-4c9d-a0cd-521bd95ab9ec" xml:lang="en-US">
+    <feed xmlns="http://www.w3.org/2005/Ato" CSID="CS1" xml:lang="en-US">
         <title>My example feed</title>
         <subtitle>for demonstration purposes</subtitle>
         <link>www.cs.adelaide.edu.au</link>

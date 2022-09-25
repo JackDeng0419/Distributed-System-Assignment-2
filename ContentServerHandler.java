@@ -1,8 +1,13 @@
 import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Deque;
@@ -14,7 +19,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 public class ContentServerHandler implements Runnable {
 
     private Socket contentServer;
-    private OutputStream out;
+    private DataOutputStream out;
     private PriorityBlockingQueue<Message> priorityQueue;
     private DataInputStream dataInputStream;
     private ConcurrentHashMap<String, Timestamp> contentServersMap;
@@ -33,7 +38,7 @@ public class ContentServerHandler implements Runnable {
         this.dataInputStream = dataInputStream;
         this.contentServersMap = contentServersMap;
         this.timersMap = timersMap;
-        out = contentServer.getOutputStream();
+        out = new DataOutputStream(contentServer.getOutputStream());
     }
 
     @Override
@@ -53,13 +58,15 @@ public class ContentServerHandler implements Runnable {
             payload = new byte[payloadLength];
             dataInputStream.readFully(payload, 0, payloadLength);
 
+            FileOutputStream tempXMLFileOutputStream = new FileOutputStream(
+                    "AggregationServerXML/" + contentServerId + ".xml");
+            tempXMLFileOutputStream.write(payload);
+            File tempXMLFile = new File("AggregationServerXML/" + contentServerId + ".xml");
+            Feed feed = XMLParser.parseXMLFile(tempXMLFile); // TODO: parseXMLFile should check the format of XML
+
             // construct the message object
             System.out.println(payload.toString());
             Message message = new Message(GeneralDefinition.PUT_FEED, contentServerId, payload);
-
-            // TODO: move the feed object creation to here
-
-            // TODO: do the XML format check
 
             // add message to the priority queue
             priorityQueue.add(message);
@@ -70,19 +77,39 @@ public class ContentServerHandler implements Runnable {
                 timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
                         contentServersHeartBeatTimersMap), 12000L);
                 timersMap.put(contentServerId, timer);
+                // write the PUT response
+                String headerFirstLine = "HTTP/1.1 201 OK";
+                byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(headerFirstLineByte.length);
+                out.write(headerFirstLineByte);
+
+                String headerSecondLine = "The feed has been received.";
+                byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(headerSecondLineByte.length);
+                out.write(headerSecondLineByte);
             } else {
                 contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
+                String headerFirstLine = "HTTP/1.1 200 OK";
+                byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(headerFirstLineByte.length);
+                out.write(headerFirstLineByte);
+
+                String headerSecondLine = "The feed has been received.";
+                byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(headerSecondLineByte.length);
+                out.write(headerSecondLineByte);
             }
+
         } catch (IOException e1) {
             e1.printStackTrace();
         }
 
-        // output the myByteArray to the content server
-        PrintWriter printWriter = new PrintWriter(out);
-        printWriter.println("New content is saved.");
-        printWriter.flush();
+        // // output the myByteArray to the content server
+        // PrintWriter printWriter = new PrintWriter(out);
+        // printWriter.println("New content is saved.");
+        // printWriter.flush();
 
-        System.out.println("Done");
+        // System.out.println("Done");
 
         try {
             out.close();
