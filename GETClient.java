@@ -133,7 +133,7 @@ public class GETClient {
             e.printStackTrace();
         }
         Deque<Feed> feedQueue = XMLParser.getFeedQueueFromAggregatedXML(outputFile);
-        // outputFile.delete();
+        outputFile.delete();
         return feedQueue;
     }
 }
