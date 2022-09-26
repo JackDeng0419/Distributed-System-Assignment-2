@@ -9,9 +9,11 @@ public class ClientHandler implements Runnable {
     private Socket client;
     private DataOutputStream out;
     public final static String FILE_PATH_NAME = "./ATOMFeed.xml";
+    private LamportClock lamportClock;
 
-    public ClientHandler(Socket clientSocket) throws IOException {
+    public ClientHandler(Socket clientSocket, LamportClock lamportClock) throws IOException {
         this.client = clientSocket;
+        this.lamportClock = lamportClock;
         out = new DataOutputStream(client.getOutputStream());
     }
 
@@ -32,9 +34,17 @@ public class ClientHandler implements Runnable {
 
             // write the GET response
             String headerFirstLine = "HTTP/1.1 201 OK";
+
+            lamportClock.increaseTime();
+            String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
+
             byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+            byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
+
             out.writeInt(headerFirstLineByte.length);
             out.write(headerFirstLineByte);
+            out.writeInt(lamportClockInfoByte.length);
+            out.write(lamportClockInfoByte);
             out.writeInt(XMLByte.length);
             out.write(XMLByte);
 

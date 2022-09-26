@@ -7,7 +7,6 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -19,6 +18,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.PriorityBlockingQueue;
 
+
+/* 
+ * Accept and process the request from GETClient and Content Server
+ */
 public class AggregationServer {
 
     private static final int PORT = 4567;
@@ -29,10 +32,16 @@ public class AggregationServer {
     private static ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
     private static Socket requestSocket;
     private static BlockingQueue<Message> aggregatorQueue;
+    private static LamportClock lamportClock;
+    private static PriorityBlockingQueue<RequestMessage> lamportClockQueue;
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
         recoveryFeedQueue();
+
+        lamportClockQueue = new PriorityBlockingQueue<>(20, Comparator.comparing(RequestMessage::getTime));
+
+        lamportClock = new LamportClock();
 
         ServerSocket listener = new ServerSocket(PORT);
 
@@ -40,6 +49,8 @@ public class AggregationServer {
         aggregatorQueue = new LinkedBlockingDeque<Message>();
         Aggregator aggregator = new Aggregator(aggregatorQueue, AGGREGATED_FILE_NAME, feedQueue);
         new Thread(aggregator).start();
+
+
 
         while (true) {
             requestSocket = listener.accept();
@@ -80,7 +91,6 @@ public class AggregationServer {
     private static void recoveryFeedQueue() {
         File aggregatedXML = new File(AGGREGATED_FILE_NAME);
         feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
-        System.out.println(feedQueue.size());
         for (Feed feed : feedQueue) {
             contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
             Timer timer = new Timer();
@@ -106,6 +116,17 @@ public class AggregationServer {
             int headerThirdLineByteLength = dataInputStream.readInt();
             byte[] headerThirdLineByte = new byte[headerThirdLineByteLength];
             dataInputStream.readFully(headerThirdLineByte, 0, headerThirdLineByteLength);
+
+            // parse the lamport clock
+            int lamportClockInfoByteLength = dataInputStream.readInt();
+            byte[] lamportClockInfoByte = new byte[lamportClockInfoByteLength];
+            dataInputStream.readFully(lamportClockInfoByte);
+            String lamportClockInfo = new String(lamportClockInfoByte);
+            String[] tempStrings = lamportClockInfo.split(": ", 2);
+            int newTime = Integer.parseInt(tempStrings[1]);
+            System.out.println("Lamport clock: " + newTime);
+            lamportClock.update(newTime);
+
             return requestTypeInfo;
         } catch (IOException e) {
             System.out.println("Server is not working");
@@ -119,7 +140,7 @@ public class AggregationServer {
         System.out.println("client connected");
         ClientHandler clientThread;
         try {
-            clientThread = new ClientHandler(requestSocket);
+            clientThread = new ClientHandler(requestSocket, lamportClock);
             pool.execute(clientThread);
         } catch (IOException e) {
             System.out.println("Aggregation server failed to process /getFeed.");
@@ -133,7 +154,7 @@ public class AggregationServer {
         try {
             putFeedHandler = new PutFeedHandler(requestSocket,
                     aggregatorQueue, dataInputStream, contentServersMap,
-                    feedQueue, contentServersHeartBeatTimersMap);
+                    feedQueue, contentServersHeartBeatTimersMap, lamportClock);
             pool.execute(putFeedHandler);
         } catch (IOException e) {
             System.out.println("Aggregation server failed to process /putContent");
@@ -163,6 +184,8 @@ public class AggregationServer {
                 contentServersHeartBeatTimersMap.put(contentServerId, timer);
             }
 
+            lamportClock.increaseTime();
+
             DataOutputStream out = new DataOutputStream(requestSocket.getOutputStream());
 
             String responseHeaderFirstLine = "HTTP/1.1 200 OK";
@@ -175,6 +198,11 @@ public class AggregationServer {
             out.writeInt(responseHeaderSecondLineByte.length);
             out.write(responseHeaderSecondLineByte);
 
+            String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
+            byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
+            out.writeInt(lamportClockInfoByte.length);
+            out.write(lamportClockInfoByte);
+
             dataInputStream.close();
             out.close();
             requestSocket.close();
@@ -183,4 +211,44 @@ public class AggregationServer {
             e.printStackTrace();
         }
     }
+
+    /**
+     * InnerAggregationServer
+     */
+    // private class GeneralRequestHandler {
+    
+        
+    // }
+
+
+    // private class RequestMessage {
+
+    //     private int time;
+    //     private String requestRoute;
+    //     private Socket requestSocket;
+    //     private DataInputStream
+
+    //     public RequestMessage() {
+            
+    //     }
+
+    //     public String getRequestRoute() {
+    //         return requestRoute;
+    //     }
+
+    //     public void setRequestRoute(String requestRoute) {
+    //         this.requestRoute = requestRoute;
+    //     }
+
+    //     public int getTime() {
+    //         return time;
+    //     }
+
+    //     public void setTime(int time) {
+    //         this.time = time;
+    //     }
+
+
+    // }
 }
+

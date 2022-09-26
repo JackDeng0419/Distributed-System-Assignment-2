@@ -7,7 +7,6 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.UUID;
 
 /**
  * contentServer
@@ -20,15 +19,14 @@ public class GETClient {
     private static String SERVER_IP;
     private static int SERVER_PORT;
     private static Deque<Feed> feedQueue = new LinkedList<Feed>();
-    private static UUID uuid;
+    private static String clientId;
+    private static LamportClock lamportClock;
 
     public static void main(String[] args) throws IOException {
 
-        // generate an unique id for this client
-        uuid = UUID.randomUUID();
-
         // receive user input
         String URL = args[0];
+        clientId = args[1];
 
         // get the domain and port
         String[] domainPort = URL.split(":", 2);
@@ -36,6 +34,9 @@ public class GETClient {
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
         server = new Socket(SERVER_IP, SERVER_PORT);
+
+        // initialize the lamport clock
+        lamportClock = new LamportClock(clientId, GeneralDefinition.HOST_TYPE_GET_CLIENT);
 
         // sending the get request
         DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
@@ -64,7 +65,6 @@ public class GETClient {
             System.out.println("Updated: " + feed.getUpdated());
             System.out.println("Author: " + feed.getAuthor());
             System.out.println("Id: " + feed.getId());
-            System.out.println(feed.getEntries().size());
             for (FeedEntry feedEntry : feed.getEntries()) {
                 System.out.println("Entry:");
                 System.out.println("Title: " + feedEntry.getTitle());
@@ -79,12 +79,16 @@ public class GETClient {
     }
 
     private static void sendGETRequest(DataOutputStream dataOutputStream) {
+        lamportClock.increaseTime();
+
         String headerFirstLine = "GET /getFeed HTTP/1.1";
         String headerSecondLine = "Host: " + SERVER_IP + ":" + SERVER_PORT;
         String headerThirdLine = "Accept: application/xml";
+        String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
         byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
         byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
         byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
+        byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
 
         try {
             dataOutputStream.writeInt(headerFirstLineByte.length);
@@ -93,6 +97,8 @@ public class GETClient {
             dataOutputStream.write(headerSecondLineByte);
             dataOutputStream.writeInt(headerThirdLineByte.length);
             dataOutputStream.write(headerThirdLineByte);
+            dataOutputStream.writeInt(lamportClockInfoByte.length);
+            dataOutputStream.write(lamportClockInfoByte);
         } catch (IOException e) {
             System.out.println("GETClient failed to send get request.");
             System.out.println("Detail: ");
@@ -109,6 +115,14 @@ public class GETClient {
 
             System.out.println(responseHeaderFirstLine);
 
+            int responseLamportClockLength = dataInputStream.readInt();
+            byte[] responseLamportClockByte = new byte[responseLamportClockLength];
+            dataInputStream.readFully(responseLamportClockByte, 0, responseLamportClockLength);
+            String responseLamportClock = new String(responseLamportClockByte);
+            String[] tempStrings = responseLamportClock.split(": ");
+            int newTime = Integer.parseInt(tempStrings[1]);
+            lamportClock.update(newTime);
+
             int responseXMLLength = dataInputStream.readInt();
             byte[] responseXMLByte = new byte[responseXMLLength];
             dataInputStream.readFully(responseXMLByte, 0, responseXMLLength);
@@ -123,7 +137,7 @@ public class GETClient {
 
     private static Deque<Feed> generateFeedQueue(byte[] responseXMLByte) {
         // write the XML into a temp file
-        File outputFile = new File("GETClientXML/" + uuid.toString() + ".xml");
+        File outputFile = new File("GETClientXML/" + clientId + ".xml");
         try (FileOutputStream fileOutputStream = new FileOutputStream(outputFile)) {
             fileOutputStream.write(responseXMLByte);
             fileOutputStream.close();

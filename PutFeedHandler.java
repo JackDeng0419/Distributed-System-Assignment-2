@@ -22,18 +22,20 @@ public class PutFeedHandler implements Runnable {
     private Deque<Feed> feedQueue;
     private ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap;
     private String contentServerId;
+    private LamportClock lamportClock;
     private byte[] payload;
 
     public PutFeedHandler(Socket contentServerSocket, BlockingQueue<Message> aggregatorQueue,
             DataInputStream dataInputStream, ConcurrentHashMap<String, Timestamp> contentServersMap,
             Deque<Feed> feedQueue,
-            ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap)
+            ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap, LamportClock lamportClock)
             throws IOException {
         this.contentServer = contentServerSocket;
         this.aggregatorQueue = aggregatorQueue;
         this.dataInputStream = dataInputStream;
         this.contentServersMap = contentServersMap;
         this.contentServersHeartBeatTimersMap = contentServersHeartBeatTimersMap;
+        this.lamportClock = lamportClock;
         out = new DataOutputStream(contentServer.getOutputStream());
     }
 
@@ -101,8 +103,11 @@ public class PutFeedHandler implements Runnable {
     }
 
     private void sendPutResponse() {
+        lamportClock.increaseTime();
+
         String headerFirstLine;
         String headerSecondLine = "The feed has been received.";
+        String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
 
         try {
             if (contentServersMap.get(contentServerId) == null) {
@@ -132,6 +137,10 @@ public class PutFeedHandler implements Runnable {
             byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
             out.writeInt(headerSecondLineByte.length);
             out.write(headerSecondLineByte);
+
+            byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
+            out.writeInt(lamportClockInfoByte.length);
+            out.write(lamportClockInfoByte);
 
         } catch (Exception e) {
             System.out.println("PutFeedHandler failed to send put response.");

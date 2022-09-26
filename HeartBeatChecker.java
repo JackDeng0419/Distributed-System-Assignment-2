@@ -26,7 +26,9 @@ public class HeartBeatChecker extends TimerTask {
             return feed.getContentServerId().equals(contentServerId);
         });
         XMLCreator.createXML(feedQueue);
-        contentServersHeartBeatTimersMap.get(contentServerId).cancel();
+        if (contentServersHeartBeatTimersMap.get(contentServerId) != null) {
+            contentServersHeartBeatTimersMap.get(contentServerId).cancel();
+        }
         contentServersHeartBeatTimersMap.remove(contentServerId);
         contentServersMap.remove(contentServerId);
         System.out.println("Feed from " + contentServerId + " has been removed!");

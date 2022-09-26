@@ -16,12 +16,16 @@ public class ContentServer {
     private static String contentServerId;
     private static Socket server;
     private static String inputFilename;
+    private static LamportClock lamportClock;
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
         String URL = args[0];
         inputFilename = args[1];
         contentServerId = args[2];
+
+        // initialize the lamport clock
+        lamportClock = new LamportClock(contentServerId, GeneralDefinition.HOST_TYPE_CONTENT_SERVER);
 
         // get the domain and port
         String[] domainPort = URL.split(":", 2);
@@ -42,7 +46,7 @@ public class ContentServer {
 
             // start a timer to send heart beat signal
             Timer timer = new Timer();
-            timer.schedule(new HeartBeatSender(contentServerId, SERVER_IP, SERVER_PORT), 1000L, 4000L);
+            timer.schedule(new HeartBeatSender(contentServerId, SERVER_IP, SERVER_PORT, lamportClock), 1000L, 4000L);
 
             while (true) {
             }
@@ -53,13 +57,18 @@ public class ContentServer {
 
     private static void sendPUTFeedRequest(DataOutputStream dataOutputStream) {
 
+        lamportClock.increaseTime();
+
         // prepare the header
         String headerFirstLine = "PUT /putContent HTTP/1.1";
         String headerSecondLine = "Host: " + SERVER_IP + ":" + SERVER_PORT;
         String headerThirdLine = "Accept: */*";
+        String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
+
         byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
         byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
         byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
+        byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
 
         // prepare the content server id
         byte[] contentServerIdByte = contentServerId.getBytes(Charset.forName("UTF-8"));
@@ -88,6 +97,8 @@ public class ContentServer {
             dataOutputStream.write(headerSecondLineByte);
             dataOutputStream.writeInt(headerThirdLineByte.length);
             dataOutputStream.write(headerThirdLineByte);
+            dataOutputStream.writeInt(lamportClockInfoByte.length);
+            dataOutputStream.write(lamportClockInfoByte);
             dataOutputStream.writeInt(contentServerIdByte.length);
             dataOutputStream.write(contentServerIdByte);
             dataOutputStream.writeInt(feedContentByte.length);
@@ -101,12 +112,28 @@ public class ContentServer {
 
     private static void receiveServerResponse(DataInputStream dataInputStream) {
         int responseFirstLineLength;
+        int responseSecondLineLength;
         try {
             responseFirstLineLength = dataInputStream.readInt();
             byte[] responseFirstLineByte = new byte[responseFirstLineLength];
             dataInputStream.readFully(responseFirstLineByte, 0, responseFirstLineLength);
             String responseFirstLine = new String(responseFirstLineByte);
             System.out.println(responseFirstLine);
+
+            responseSecondLineLength = dataInputStream.readInt();
+            byte[] responseSecondLineByte = new byte[responseSecondLineLength];
+            dataInputStream.readFully(responseSecondLineByte, 0, responseSecondLineLength);
+            String responseSecondLine = new String(responseSecondLineByte);
+            System.out.println(responseSecondLine);
+
+            int responseLamportClockLength = dataInputStream.readInt();
+            byte[] responseLamportClockByte = new byte[responseLamportClockLength];
+            dataInputStream.readFully(responseLamportClockByte, 0, responseLamportClockLength);
+            String responseLamportClock = new String(responseLamportClockByte);
+            String[] tempStrings = responseLamportClock.split(": ");
+            int newTime = Integer.parseInt(tempStrings[1]);
+            lamportClock.update(newTime);
+
         } catch (IOException e) {
             System.out.println("ContentServer failed to receive aggregation server's response.");
             e.printStackTrace();
