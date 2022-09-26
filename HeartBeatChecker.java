@@ -4,7 +4,6 @@ import java.util.Deque;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 public class HeartBeatChecker extends TimerTask {
     private ConcurrentHashMap<String, Timestamp> contentServersMap;

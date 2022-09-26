@@ -59,12 +59,12 @@ public class XMLCreator {
             /*
              * Generate the XML file
              */
-
             FileOutputStream outputFile = new FileOutputStream(xmlFilename + ".xml");
             writeXML(document, outputFile);
 
             return (xmlFilename + ".xml");
         } catch (ParserConfigurationException | FileNotFoundException | TransformerException e) {
+            System.out.println("XMLCreator failed to create XML file from the input file.");
             e.printStackTrace();
             return "Create XML failed";
         }
@@ -118,6 +118,7 @@ public class XMLCreator {
             transformer.transform(new DOMSource(document), new StreamResult(inputFile));
 
         } catch (ParserConfigurationException | TransformerException e) {
+
             e.printStackTrace();
         }
     }

@@ -1,16 +1,12 @@
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.Scanner;
 import java.util.UUID;
 
 /**
@@ -20,6 +16,7 @@ import java.util.UUID;
  */
 public class GETClient {
 
+    private static Socket server;
     private static String SERVER_IP;
     private static int SERVER_PORT;
     private static Deque<Feed> feedQueue = new LinkedList<Feed>();
@@ -38,50 +35,25 @@ public class GETClient {
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
-        Socket server = new Socket(SERVER_IP, SERVER_PORT);
+        server = new Socket(SERVER_IP, SERVER_PORT);
 
         // sending the get request
         DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
-
-        // write the GET header
-        String headerFirstLine = "GET /getFeed HTTP/1.1";
-        String headerSecondLine = "Host: 127.0.0.1:4567";
-        String headerThirdLine = "Accept: application/xml";
-        byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
-        byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
-        byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
-
-        dataOutputStream.writeInt(headerFirstLineByte.length);
-        dataOutputStream.write(headerFirstLineByte);
-        dataOutputStream.writeInt(headerSecondLineByte.length);
-        dataOutputStream.write(headerSecondLineByte);
-        dataOutputStream.writeInt(headerThirdLineByte.length);
-        dataOutputStream.write(headerThirdLineByte);
+        sendGETRequest(dataOutputStream);
 
         // receiving the response from the aggregation server
-        DataInputStream dataInputStream = new DataInputStream(server.getInputStream());
-        int responseHeaderFirstLineLength = dataInputStream.readInt();
-        byte[] responseHeaderFirstLineByte = new byte[responseHeaderFirstLineLength];
-        dataInputStream.readFully(responseHeaderFirstLineByte, 0, responseHeaderFirstLineLength);
-        String responseHeaderFirstLine = new String(responseHeaderFirstLineByte);
-        System.out.println(responseHeaderFirstLine);
+        byte[] responseXMLByte = receiveServerResponse();
 
-        int responseXMLLength = dataInputStream.readInt();
-        byte[] responseXMLByte = new byte[responseXMLLength];
-        dataInputStream.readFully(responseXMLByte, 0, responseXMLLength);
+        if (responseXMLByte.length != 0) {
 
-        // write the XML into a temp file
-        File outputFile = new File("GETClientXML/" + uuid.toString() + ".xml");
-        FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
-        fileOutputStream.write(responseXMLByte);
-        File tempXMFile = new File("GETClientXML/" + uuid.toString() + ".xml");
+            // parse the responded XML file
+            feedQueue = generateFeedQueue(responseXMLByte);
 
-        // parse the responded XML file
-        feedQueue = XMLParser.getFeedQueueFromAggregatedXML(tempXMFile);
-        printAggregatedFeed();
+            // print the parsed XML content
+            printAggregatedFeed();
+        }
+        server.close();
 
-        fileOutputStream.close();
-        outputFile.delete();
     }
 
     private static void printAggregatedFeed() {
@@ -92,6 +64,7 @@ public class GETClient {
             System.out.println("Updated: " + feed.getUpdated());
             System.out.println("Author: " + feed.getAuthor());
             System.out.println("Id: " + feed.getId());
+            System.out.println(feed.getEntries().size());
             for (FeedEntry feedEntry : feed.getEntries()) {
                 System.out.println("Entry:");
                 System.out.println("Title: " + feedEntry.getTitle());
@@ -103,5 +76,64 @@ public class GETClient {
             }
             System.out.println("====================");
         }
+    }
+
+    private static void sendGETRequest(DataOutputStream dataOutputStream) {
+        String headerFirstLine = "GET /getFeed HTTP/1.1";
+        String headerSecondLine = "Host: " + SERVER_IP + ":" + SERVER_PORT;
+        String headerThirdLine = "Accept: application/xml";
+        byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+        byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
+        byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
+
+        try {
+            dataOutputStream.writeInt(headerFirstLineByte.length);
+            dataOutputStream.write(headerFirstLineByte);
+            dataOutputStream.writeInt(headerSecondLineByte.length);
+            dataOutputStream.write(headerSecondLineByte);
+            dataOutputStream.writeInt(headerThirdLineByte.length);
+            dataOutputStream.write(headerThirdLineByte);
+        } catch (IOException e) {
+            System.out.println("GETClient failed to send get request.");
+            System.out.println("Detail: ");
+            e.printStackTrace();
+        }
+    }
+
+    private static byte[] receiveServerResponse() {
+        try (DataInputStream dataInputStream = new DataInputStream(server.getInputStream())) {
+            int responseHeaderFirstLineLength = dataInputStream.readInt();
+            byte[] responseHeaderFirstLineByte = new byte[responseHeaderFirstLineLength];
+            dataInputStream.readFully(responseHeaderFirstLineByte, 0, responseHeaderFirstLineLength);
+            String responseHeaderFirstLine = new String(responseHeaderFirstLineByte);
+
+            System.out.println(responseHeaderFirstLine);
+
+            int responseXMLLength = dataInputStream.readInt();
+            byte[] responseXMLByte = new byte[responseXMLLength];
+            dataInputStream.readFully(responseXMLByte, 0, responseXMLLength);
+            return responseXMLByte;
+        } catch (IOException e) {
+            System.out.println("GETClient failed to receive server response.");
+            System.out.println("Detail:");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static Deque<Feed> generateFeedQueue(byte[] responseXMLByte) {
+        // write the XML into a temp file
+        File outputFile = new File("GETClientXML/" + uuid.toString() + ".xml");
+        try (FileOutputStream fileOutputStream = new FileOutputStream(outputFile)) {
+            fileOutputStream.write(responseXMLByte);
+            fileOutputStream.close();
+        } catch (IOException e) {
+            System.out.println("GETClient failed to save the XML file.");
+            System.out.println("Detail:");
+            e.printStackTrace();
+        }
+        Deque<Feed> feedQueue = XMLParser.getFeedQueueFromAggregatedXML(outputFile);
+        // outputFile.delete();
+        return feedQueue;
     }
 }

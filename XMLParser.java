@@ -97,8 +97,9 @@ public class XMLParser {
                 String author = authorElement.getElementsByTagName("name").item(0).getTextContent();
                 String id = feedElement.getElementsByTagName("id").item(0).getTextContent();
 
-                NodeList entriesNodeList = doc.getElementsByTagName("entry");
+                NodeList entriesNodeList = feedElement.getElementsByTagName("entry");
                 ArrayList<FeedEntry> entries = new ArrayList<>();
+
                 for (int j = 0; j < entriesNodeList.getLength(); j++) {
                     FeedEntry entry = new FeedEntry();
                     Element entryElement = (Element) entriesNodeList.item(j);

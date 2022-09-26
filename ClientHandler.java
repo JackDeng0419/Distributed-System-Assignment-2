@@ -1,17 +1,9 @@
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.charset.Charset;
-import java.util.concurrent.TimeUnit;
-
-import javax.print.DocFlavor.URL;
 
 public class ClientHandler implements Runnable {
     private Socket client;
@@ -26,7 +18,6 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         FileInputStream fis = null;
-        BufferedInputStream bis = null;
 
         try {
             File file = new File(FILE_PATH_NAME);
@@ -34,10 +25,9 @@ public class ClientHandler implements Runnable {
 
             // turn the file input stream into buffered input stream
             fis = new FileInputStream(file);
-            bis = new BufferedInputStream(fis);
 
             // read the file content into myByteArray
-            bis.read(XMLByte, 0, XMLByte.length);
+            fis.read(XMLByte);
             System.out.println("Sending " + FILE_PATH_NAME.substring(2) + "(" + XMLByte.length + " bytes)");
 
             // write the GET response
@@ -45,20 +35,15 @@ public class ClientHandler implements Runnable {
             byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
             out.writeInt(headerFirstLineByte.length);
             out.write(headerFirstLineByte);
-
             out.writeInt(XMLByte.length);
             out.write(XMLByte);
 
-            System.out.println("Done");
+            System.out.println("The aggregated feed has been sent.");
+            client.close();
+            out.close();
         } catch (IOException e) {
+            System.out.println("GETClientHandler failed to work.");
             e.printStackTrace();
-        } finally {
-            try {
-                client.close();
-                out.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
     }
 

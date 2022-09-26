@@ -1,23 +1,16 @@
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Deque;
-import java.util.Queue;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
-public class FileHandler implements Runnable {
+public class Aggregator implements Runnable {
 
-    PriorityBlockingQueue<Message> priorityQueue;
+    BlockingQueue<Message> priorityQueue;
     String aggregatedFilename;
     Deque<Feed> feedQueue;
 
-    public FileHandler(PriorityBlockingQueue<Message> priorityQueue, String aggregatedFilename, Deque<Feed> feedQueue) {
+    public Aggregator(BlockingQueue<Message> priorityQueue, String aggregatedFilename, Deque<Feed> feedQueue) {
         this.priorityQueue = priorityQueue;
         this.aggregatedFilename = aggregatedFilename;
         this.feedQueue = feedQueue;
@@ -25,13 +18,6 @@ public class FileHandler implements Runnable {
 
     @Override
     public void run() {
-        // while (priorityQueue.isEmpty()) {
-        // try {
-        // wait();
-        // } catch (InterruptedException e) {
-        // e.printStackTrace();
-        // }
-        // }
 
         Message message;
         File outputFile = new File("ATOMFeed.xml");

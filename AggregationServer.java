@@ -1,9 +1,7 @@
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.Charset;
@@ -12,28 +10,74 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Timer;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.PriorityBlockingQueue;
 
 public class AggregationServer {
 
     private static final int PORT = 4567;
     private static final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
-    private static ArrayList<ClientHandler> clients = new ArrayList<>();
-    private static ArrayList<ContentServerHandler> contentServers = new ArrayList<>();
     private static Deque<Feed> feedQueue = new LinkedList<Feed>();
     private static ExecutorService pool = Executors.newFixedThreadPool(5);
     private static ConcurrentHashMap<String, Timestamp> contentServersMap = new ConcurrentHashMap<>();
     private static ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
+    private static Socket requestSocket;
+    private static BlockingQueue<Message> aggregatorQueue;
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        // TODO: Construct the feed Queue from the XML file
+
+        recoveryFeedQueue();
+
+        ServerSocket listener = new ServerSocket(PORT);
+
+        // initialize the file handler
+        aggregatorQueue = new LinkedBlockingDeque<Message>();
+        Aggregator aggregator = new Aggregator(aggregatorQueue, AGGREGATED_FILE_NAME, feedQueue);
+        new Thread(aggregator).start();
+
+        while (true) {
+            requestSocket = listener.accept();
+
+            DataInputStream dataInputStream = new DataInputStream(requestSocket.getInputStream());
+
+            // reading request type
+            String[] requestTypeInfo = parseRequestInfo(dataInputStream);
+
+            if (!requestTypeInfo[0].equals("GET") && !requestTypeInfo[0].equals("PUT")) {
+                DataOutputStream out = new DataOutputStream(requestSocket.getOutputStream());
+                String responseHeaderFirstLine = "HTTP/1.1 400 invalid request type";
+                byte[] responseHeaderFirstLineByte = responseHeaderFirstLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(responseHeaderFirstLineByte.length);
+                out.write(responseHeaderFirstLineByte);
+                out.close();
+                continue;
+            }
+
+            switch (requestTypeInfo[1]) {
+                case "/getFeed":
+                    processGetFeed();
+                    break;
+                case "/putContent":
+                    processPutContent(dataInputStream);
+                    break;
+                case "/putHeartBeat":
+                    processPutHeartBeat(dataInputStream);
+                    break;
+                default:
+                    break;
+            }
+
+        }
+
+    }
+
+    private static void recoveryFeedQueue() {
         File aggregatedXML = new File(AGGREGATED_FILE_NAME);
         feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
         System.out.println(feedQueue.size());
@@ -44,18 +88,10 @@ public class AggregationServer {
                     contentServersHeartBeatTimersMap), 12000L);
             contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
         }
+    }
 
-        ServerSocket listener = new ServerSocket(PORT);
-        PriorityBlockingQueue<Message> priorityQueue = new PriorityBlockingQueue<Message>(20, new MessageComparator());
-        FileHandler fileHandler = new FileHandler(priorityQueue, AGGREGATED_FILE_NAME, feedQueue);
-        new Thread(fileHandler).start();
-
-        while (true) {
-            Socket client = listener.accept();
-
-            DataInputStream dataInputStream = new DataInputStream(client.getInputStream());
-
-            // reading request type
+    private static String[] parseRequestInfo(DataInputStream dataInputStream) {
+        try {
             int headerFirstLineByteLength = dataInputStream.readInt();
             byte[] headerFirstLineByte = new byte[headerFirstLineByteLength];
             dataInputStream.readFully(headerFirstLineByte, 0, headerFirstLineByteLength);
@@ -70,85 +106,81 @@ public class AggregationServer {
             int headerThirdLineByteLength = dataInputStream.readInt();
             byte[] headerThirdLineByte = new byte[headerThirdLineByteLength];
             dataInputStream.readFully(headerThirdLineByte, 0, headerThirdLineByteLength);
-
-            if (!requestTypeInfo[0].equals("GET") && !requestTypeInfo[0].equals("PUT")) {
-                DataOutputStream out = new DataOutputStream(client.getOutputStream());
-                String responseHeaderFirstLine = "HTTP/1.1 400 invalid request type";
-                byte[] responseHeaderFirstLineByte = responseHeaderFirstLine.getBytes(Charset.forName("UTF-8"));
-                out.writeInt(responseHeaderFirstLineByte.length);
-                out.write(responseHeaderFirstLineByte);
-                continue;
-            }
-
-            switch (requestTypeInfo[1]) {
-                case "/getFeed":
-                    System.out.println("client connected");
-                    ClientHandler clientThread = new ClientHandler(client);
-                    clients.add(clientThread);
-                    pool.execute(clientThread);
-                    break;
-                case "/putContent":
-                    System.out.println("content server connected");
-                    ContentServerHandler contentServerHandler = new ContentServerHandler(client,
-                            priorityQueue, dataInputStream, contentServersMap, contentServersHeartBeatTimersMap,
-                            feedQueue, contentServersHeartBeatTimersMap);
-                    contentServers.add(contentServerHandler);
-                    pool.execute(contentServerHandler);
-                    break;
-                case "/putHeartBeat":
-                    System.out.println("content server heart beat");
-                    int contentServerIdByteLength = dataInputStream.readInt();
-                    byte[] contentServerIdByte = new byte[contentServerIdByteLength];
-                    dataInputStream.readFully(contentServerIdByte, 0, contentServerIdByteLength);
-                    String contentServerId = new String(contentServerIdByte);
-                    contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
-                    if (contentServersHeartBeatTimersMap.get(contentServerId) == null) {
-                        Timer timer = new Timer();
-                        timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                                contentServersHeartBeatTimersMap), 12000L);
-                        contentServersHeartBeatTimersMap.put(contentServerId, timer);
-                    } else {
-                        contentServersHeartBeatTimersMap.get(contentServerId).cancel();
-                        Timer timer = new Timer();
-                        timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                                contentServersHeartBeatTimersMap), 12000L);
-                        contentServersHeartBeatTimersMap.put(contentServerId, timer);
-                    }
-
-                    DataOutputStream out = new DataOutputStream(client.getOutputStream());
-
-                    String responseHeaderFirstLine = "HTTP/1.1 200 OK";
-                    byte[] responseHeaderFirstLineByte = responseHeaderFirstLine.getBytes(Charset.forName("UTF-8"));
-                    out.writeInt(responseHeaderFirstLineByte.length);
-                    out.write(responseHeaderFirstLineByte);
-
-                    String responseHeaderSecondLine = "Heart beat signal received.";
-                    byte[] responseHeaderSecondLineByte = responseHeaderSecondLine.getBytes(Charset.forName("UTF-8"));
-                    out.writeInt(responseHeaderSecondLineByte.length);
-                    out.write(responseHeaderSecondLineByte);
-
-                    dataInputStream.close();
-                    out.close();
-                    client.close();
-                    break;
-                default:
-                    break;
-            }
-
+            return requestTypeInfo;
+        } catch (IOException e) {
+            System.out.println("Server is not working");
+            e.printStackTrace();
         }
 
+        return new String[2];
     }
-}
 
-/**
- * Comparator for the priority queue
- */
-class MessageComparator implements Comparator<Message> {
-    public int compare(Message m1, Message m2) {
-        if (m1.operationType < m2.operationType)
-            return 1;
-        else if (m1.operationType > m2.operationType)
-            return -1;
-        return 0;
+    private static void processGetFeed() {
+        System.out.println("client connected");
+        ClientHandler clientThread;
+        try {
+            clientThread = new ClientHandler(requestSocket);
+            pool.execute(clientThread);
+        } catch (IOException e) {
+            System.out.println("Aggregation server failed to process /getFeed.");
+            e.printStackTrace();
+        }
+    }
+
+    private static void processPutContent(DataInputStream dataInputStream) {
+        System.out.println("content server connected");
+        PutFeedHandler putFeedHandler;
+        try {
+            putFeedHandler = new PutFeedHandler(requestSocket,
+                    aggregatorQueue, dataInputStream, contentServersMap,
+                    feedQueue, contentServersHeartBeatTimersMap);
+            pool.execute(putFeedHandler);
+        } catch (IOException e) {
+            System.out.println("Aggregation server failed to process /putContent");
+            e.printStackTrace();
+        }
+    }
+
+    private static void processPutHeartBeat(DataInputStream dataInputStream) {
+        System.out.println("content server heart beat");
+        int contentServerIdByteLength;
+        try {
+            contentServerIdByteLength = dataInputStream.readInt();
+            byte[] contentServerIdByte = new byte[contentServerIdByteLength];
+            dataInputStream.readFully(contentServerIdByte, 0, contentServerIdByteLength);
+            String contentServerId = new String(contentServerIdByte);
+            contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
+            if (contentServersHeartBeatTimersMap.get(contentServerId) == null) {
+                Timer timer = new Timer();
+                timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
+                        contentServersHeartBeatTimersMap), 12000L);
+                contentServersHeartBeatTimersMap.put(contentServerId, timer);
+            } else {
+                contentServersHeartBeatTimersMap.get(contentServerId).cancel();
+                Timer timer = new Timer();
+                timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
+                        contentServersHeartBeatTimersMap), 12000L);
+                contentServersHeartBeatTimersMap.put(contentServerId, timer);
+            }
+
+            DataOutputStream out = new DataOutputStream(requestSocket.getOutputStream());
+
+            String responseHeaderFirstLine = "HTTP/1.1 200 OK";
+            byte[] responseHeaderFirstLineByte = responseHeaderFirstLine.getBytes(Charset.forName("UTF-8"));
+            out.writeInt(responseHeaderFirstLineByte.length);
+            out.write(responseHeaderFirstLineByte);
+
+            String responseHeaderSecondLine = "Heart beat signal received.";
+            byte[] responseHeaderSecondLineByte = responseHeaderSecondLine.getBytes(Charset.forName("UTF-8"));
+            out.writeInt(responseHeaderSecondLineByte.length);
+            out.write(responseHeaderSecondLineByte);
+
+            dataInputStream.close();
+            out.close();
+            requestSocket.close();
+        } catch (IOException e) {
+            System.out.println("Aggregation server failed to process /putHeartBeat");
+            e.printStackTrace();
+        }
     }
 }
