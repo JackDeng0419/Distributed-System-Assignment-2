@@ -18,7 +18,7 @@ public class ContentServer {
     private static String inputFilename;
     private static LamportClock lamportClock;
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException {
 
         String URL = args[0];
         inputFilename = args[1];
@@ -34,7 +34,21 @@ public class ContentServer {
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
-        server = new Socket(SERVER_IP, SERVER_PORT);
+        // create the socket of AG
+        for (int i = 0; i < 4; i++) {
+            if (i == 3) {
+                System.out.println("[ContentServer:" + contentServerId + "]: "
+                        + "Failed to connect to AG, please check whether AG is running.");
+                System.exit(-1);
+            }
+            try {
+                server = new Socket(SERVER_IP, SERVER_PORT);
+                break;
+            } catch (IOException e) {
+                System.out.println("[ContentServer:" + contentServerId + "]: " + "Reconnect to AG " + (i + 1));
+                Thread.sleep(2000);
+            }
+        }
         DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
         DataInputStream dataInputStream = new DataInputStream(server.getInputStream());
 

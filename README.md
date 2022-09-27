@@ -1,1 +1,38 @@
-test
+# Distributed System Assignment 2
+## 1. Compile the code
+Run `./compile.sh`
+
+## 2. Running the program
+1. For Aggregation Server (AG):
+    Run `java AggregationServer`
+2. For Content Server (CS):
+    Run `java ContentServer <AG_URL> <feedFilename> <contentServerId>`
+    - Example: 
+        ```
+        java ContentServer 127.0.0.1:4567 contentServerFeed1.txt CS1
+        ```
+3. For GET client (GC):
+    Run `java GETClient <AG_URL> <contentServerId>`
+     - Example: 
+        ```
+        java GETClient 127.0.0.1:4567 GC1
+        ```
+**Notice:** Before starting the CS or GC, please make sure the AG is running. 
+
+## 3. Test cases
+1. One GC getting feed from the AG
+    - Run: `./Test/Client_GET_to_AS.sh`
+2. Multiple GCs getting feed from the AG
+    - Run: `./Test/Multiple_Client_GET_to_AS.sh`
+3. One CS putting feed to the AG
+    - Run: `./Test/CS_PUT_to_AS.sh`
+4. Multiple CSs putting feed to the AG
+    - Run: `./Test/Multiple_CS_PUT_to_AS.sh`
+5. CS heartbeat signal
+    - Run: `./Test/CS_Heartbeat.sh`
+6. AG recovery
+    - Run: `./Test/AG_Recovery.sh`
+6. GC connection retry
+    - Run: `./Test/Client_GET_connection_retry.sh`
+7. CS connection retry
+    - Run: `./Test/CS_connection_retry.sh`
