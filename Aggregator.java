@@ -33,6 +33,7 @@ public class Aggregator implements Runnable {
                         FileOutputStream tempXMLFileOutputStream = new FileOutputStream(
                                 "AggregationServerXML/" + message.contentServerId + ".xml");
                         tempXMLFileOutputStream.write(message.payload);
+                        tempXMLFileOutputStream.close();
                         File tempXMLFile = new File("AggregationServerXML/" + message.contentServerId + ".xml");
 
                         // parse the input XML file
@@ -50,6 +51,8 @@ public class Aggregator implements Runnable {
                         System.out.println("Writing the file...");
                         // os.write(message.payload);
                         XMLCreator.createXML(feedQueue);
+
+                        tempXMLFile.delete();
 
                         // construct the XML file based on the txt file
                     }

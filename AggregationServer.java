@@ -90,7 +90,6 @@ public class AggregationServer {
             String lamportClockInfo = new String(lamportClockInfoByte);
             String[] tempStrings = lamportClockInfo.split(": ", 2);
             int newTime = Integer.parseInt(tempStrings[1]);
-            System.out.println("Lamport clock: " + newTime);
             lamportClock.update(newTime);
 
             return requestTypeInfo;
@@ -243,14 +242,17 @@ class GeneralRequestHandler implements Runnable {
     }
 
     private void recoveryFeedQueue() {
+
         File aggregatedXML = new File(AGGREGATED_FILE_NAME);
-        feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
-        for (Feed feed : feedQueue) {
-            contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
-            Timer timer = new Timer();
-            timer.schedule(new HeartBeatChecker(contentServersMap, feed.getContentServerId(), feedQueue,
-                    contentServersHeartBeatTimersMap), 12000L);
-            contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
+        if (aggregatedXML.isFile()) {
+            feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
+            for (Feed feed : feedQueue) {
+                contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
+                Timer timer = new Timer();
+                timer.schedule(new HeartBeatChecker(contentServersMap, feed.getContentServerId(), feedQueue,
+                        contentServersHeartBeatTimersMap), 12000L);
+                contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
+            }
         }
     }
 
