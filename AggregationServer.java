@@ -18,39 +18,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.PriorityBlockingQueue;
 
-
 /* 
  * Accept and process the request from GETClient and Content Server
  */
 public class AggregationServer {
 
     private static final int PORT = 4567;
-    private static final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
-    private static Deque<Feed> feedQueue = new LinkedList<Feed>();
-    private static ExecutorService pool = Executors.newFixedThreadPool(5);
-    private static ConcurrentHashMap<String, Timestamp> contentServersMap = new ConcurrentHashMap<>();
-    private static ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
     private static Socket requestSocket;
-    private static BlockingQueue<Message> aggregatorQueue;
     private static LamportClock lamportClock;
     private static PriorityBlockingQueue<RequestMessage> lamportClockQueue;
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        recoveryFeedQueue();
-
-        lamportClockQueue = new PriorityBlockingQueue<>(20, Comparator.comparing(RequestMessage::getTime));
+        // recoveryFeedQueue();
 
         lamportClock = new LamportClock();
+        lamportClockQueue = new PriorityBlockingQueue<>(20, Comparator.comparing(RequestMessage::getTime));
+
+        // initialize the general request handler
+        GeneralRequestHandler generalRequestHandler = new GeneralRequestHandler(lamportClockQueue, lamportClock);
+        new Thread(generalRequestHandler).start();
 
         ServerSocket listener = new ServerSocket(PORT);
-
-        // initialize the file handler
-        aggregatorQueue = new LinkedBlockingDeque<Message>();
-        Aggregator aggregator = new Aggregator(aggregatorQueue, AGGREGATED_FILE_NAME, feedQueue);
-        new Thread(aggregator).start();
-
-
 
         while (true) {
             requestSocket = listener.accept();
@@ -70,34 +59,11 @@ public class AggregationServer {
                 continue;
             }
 
-            switch (requestTypeInfo[1]) {
-                case "/getFeed":
-                    processGetFeed();
-                    break;
-                case "/putContent":
-                    processPutContent(dataInputStream);
-                    break;
-                case "/putHeartBeat":
-                    processPutHeartBeat(dataInputStream);
-                    break;
-                default:
-                    break;
-            }
+            lamportClockQueue.add(
+                    new RequestMessage(lamportClock.getTime(), requestTypeInfo[1], requestSocket, dataInputStream));
 
         }
 
-    }
-
-    private static void recoveryFeedQueue() {
-        File aggregatedXML = new File(AGGREGATED_FILE_NAME);
-        feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
-        for (Feed feed : feedQueue) {
-            contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
-            Timer timer = new Timer();
-            timer.schedule(new HeartBeatChecker(contentServersMap, feed.getContentServerId(), feedQueue,
-                    contentServersHeartBeatTimersMap), 12000L);
-            contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
-        }
     }
 
     private static String[] parseRequestInfo(DataInputStream dataInputStream) {
@@ -136,7 +102,71 @@ public class AggregationServer {
         return new String[2];
     }
 
-    private static void processGetFeed() {
+}
+
+class GeneralRequestHandler implements Runnable {
+
+    private PriorityBlockingQueue<RequestMessage> lamportClockQueue;
+    private Socket requestSocket;
+    private LamportClock lamportClock;
+    private DataInputStream dataInputStream;
+    private ExecutorService pool = Executors.newFixedThreadPool(5);
+    private Deque<Feed> feedQueue = new LinkedList<Feed>();
+    private final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
+    private ConcurrentHashMap<String, Timestamp> contentServersMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
+    private BlockingQueue<Message> aggregatorQueue;
+
+    public GeneralRequestHandler(PriorityBlockingQueue<RequestMessage> lamportCloBlockingQueue,
+            LamportClock lamportClock) {
+
+        this.lamportClockQueue = lamportCloBlockingQueue;
+        this.lamportClock = lamportClock;
+
+        recoveryFeedQueue();
+
+        // initialize the file handler
+        aggregatorQueue = new LinkedBlockingDeque<Message>();
+        Aggregator aggregator = new Aggregator(aggregatorQueue, AGGREGATED_FILE_NAME, feedQueue);
+        new Thread(aggregator).start();
+    }
+
+    @Override
+    public void run() {
+
+        RequestMessage requestMessage;
+
+        while (true) {
+            try {
+                requestMessage = lamportClockQueue.take();
+
+                this.requestSocket = requestMessage.getRequestSocket();
+                this.dataInputStream = requestMessage.getDataInputStream();
+
+                switch (requestMessage.getRequestRoute()) {
+                    case "/getFeed":
+                        processGetFeed();
+                        break;
+                    case "/putContent":
+                        processPutContent(dataInputStream);
+                        break;
+                    case "/putHeartBeat":
+                        processPutHeartBeat(dataInputStream);
+                        break;
+                    default:
+                        break;
+                }
+
+            } catch (InterruptedException e) {
+                System.out.println("The GeneralRequestHandler thread is interrupted.");
+                e.printStackTrace();
+            }
+
+        }
+
+    }
+
+    private void processGetFeed() {
         System.out.println("client connected");
         ClientHandler clientThread;
         try {
@@ -148,7 +178,7 @@ public class AggregationServer {
         }
     }
 
-    private static void processPutContent(DataInputStream dataInputStream) {
+    private void processPutContent(DataInputStream dataInputStream) {
         System.out.println("content server connected");
         PutFeedHandler putFeedHandler;
         try {
@@ -162,7 +192,7 @@ public class AggregationServer {
         }
     }
 
-    private static void processPutHeartBeat(DataInputStream dataInputStream) {
+    private void processPutHeartBeat(DataInputStream dataInputStream) {
         System.out.println("content server heart beat");
         int contentServerIdByteLength;
         try {
@@ -212,43 +242,50 @@ public class AggregationServer {
         }
     }
 
-    /**
-     * InnerAggregationServer
-     */
-    // private class GeneralRequestHandler {
-    
-        
-    // }
+    private void recoveryFeedQueue() {
+        File aggregatedXML = new File(AGGREGATED_FILE_NAME);
+        feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
+        for (Feed feed : feedQueue) {
+            contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
+            Timer timer = new Timer();
+            timer.schedule(new HeartBeatChecker(contentServersMap, feed.getContentServerId(), feedQueue,
+                    contentServersHeartBeatTimersMap), 12000L);
+            contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
+        }
+    }
 
-
-    // private class RequestMessage {
-
-    //     private int time;
-    //     private String requestRoute;
-    //     private Socket requestSocket;
-    //     private DataInputStream
-
-    //     public RequestMessage() {
-            
-    //     }
-
-    //     public String getRequestRoute() {
-    //         return requestRoute;
-    //     }
-
-    //     public void setRequestRoute(String requestRoute) {
-    //         this.requestRoute = requestRoute;
-    //     }
-
-    //     public int getTime() {
-    //         return time;
-    //     }
-
-    //     public void setTime(int time) {
-    //         this.time = time;
-    //     }
-
-
-    // }
 }
 
+class RequestMessage {
+
+    private int time;
+
+    private String requestRoute;
+
+    private Socket requestSocket;
+
+    public Socket getRequestSocket() {
+        return requestSocket;
+    }
+
+    private DataInputStream dataInputStream;
+
+    public DataInputStream getDataInputStream() {
+        return dataInputStream;
+    }
+
+    public RequestMessage(int time, String requestRoute, Socket requestSocket, DataInputStream dataInputStream) {
+        this.time = time;
+        this.requestRoute = requestRoute;
+        this.requestSocket = requestSocket;
+        this.dataInputStream = dataInputStream;
+    }
+
+    public int getTime() {
+        return time;
+    }
+
+    public String getRequestRoute() {
+        return requestRoute;
+    }
+}
