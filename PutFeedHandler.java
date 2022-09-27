@@ -42,18 +42,20 @@ public class PutFeedHandler implements Runnable {
     @Override
     public void run() {
 
+        // get the content server id and the payload (upload content)
         readContentServerIdAndPayload();
 
+        // generate a feed object based on the payload
         Feed feed = generateFeedFromPayload();
 
-        // construct the message object
+        // construct the message object for Aggregator
         Message message = new Message(GeneralDefinition.PUT_FEED, contentServerId, payload, feed);
 
         // add message to the priority queue, and then the Aggregator will process the
         // message
         aggregatorQueue.add(message);
 
-        // send the PUT response
+        // send the PUT response to content server
         sendPutResponse();
 
         try {

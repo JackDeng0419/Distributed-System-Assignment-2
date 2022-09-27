@@ -24,6 +24,8 @@ public class ContentServer {
         inputFilename = args[1];
         contentServerId = args[2];
 
+        System.out.println("[ContentServer:" + contentServerId + "]: Content server is started");
+
         // initialize the lamport clock
         lamportClock = new LamportClock(contentServerId, GeneralDefinition.HOST_TYPE_CONTENT_SERVER);
 
@@ -56,6 +58,7 @@ public class ContentServer {
     }
 
     private static void sendPUTFeedRequest(DataOutputStream dataOutputStream) {
+        System.out.println("[ContentServer:" + contentServerId + "]: Send put request to AG");
 
         lamportClock.increaseTime();
 
@@ -118,13 +121,13 @@ public class ContentServer {
             byte[] responseFirstLineByte = new byte[responseFirstLineLength];
             dataInputStream.readFully(responseFirstLineByte, 0, responseFirstLineLength);
             String responseFirstLine = new String(responseFirstLineByte);
-            System.out.println(responseFirstLine);
+            System.out.println("[ContentServer:" + contentServerId + "]: " + responseFirstLine);
 
             responseSecondLineLength = dataInputStream.readInt();
             byte[] responseSecondLineByte = new byte[responseSecondLineLength];
             dataInputStream.readFully(responseSecondLineByte, 0, responseSecondLineLength);
             String responseSecondLine = new String(responseSecondLineByte);
-            System.out.println(responseSecondLine);
+            System.out.println("[ContentServer:" + contentServerId + "]: " + responseSecondLine);
 
             int responseLamportClockLength = dataInputStream.readInt();
             byte[] responseLamportClockByte = new byte[responseLamportClockLength];

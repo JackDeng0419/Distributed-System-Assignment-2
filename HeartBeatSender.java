@@ -68,13 +68,12 @@ public class HeartBeatSender extends TimerTask {
             byte[] responseFirstLineByte = new byte[responseFirstLineLength];
             dataInputStream.readFully(responseFirstLineByte, 0, responseFirstLineLength);
             String responseFirstLine = new String(responseFirstLineByte);
-            System.out.println(responseFirstLine + " AG received heart beat.");
+            System.out.println(
+                    "[ContentServer:" + contentServerId + "]: " + responseFirstLine + " AG received heart beat");
 
             int responseSecondLineLength = dataInputStream.readInt();
             byte[] responseSecondLineByte = new byte[responseSecondLineLength];
             dataInputStream.readFully(responseSecondLineByte, 0, responseSecondLineLength);
-            String responseSecondLine = new String(responseSecondLineByte);
-            System.out.println(responseSecondLine + " AG received heart beat.");
 
             // receive and update lamport clock
             int responseLamportClockLength = dataInputStream.readInt();
@@ -92,7 +91,7 @@ public class HeartBeatSender extends TimerTask {
             System.out.println("E1");
         } catch (IOException e) {
             // e.printStackTrace();
-            System.out.println("Aggregation Server connection lost...");
+            System.out.println("[ContentServer:" + contentServerId + "]: Aggregation Server connection lost...");
         }
 
     }

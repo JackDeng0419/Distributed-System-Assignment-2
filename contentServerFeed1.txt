@@ -1,5 +1,5 @@
-title:My example feed
-subtitle:for demonstration purposes
+title:My example feed 1
+subtitle:example feed 1 subtitle
 link:www.cs.adelaide.edu.au
 updated:2015-08-07T18:30:02Z
 author:Santa Claus

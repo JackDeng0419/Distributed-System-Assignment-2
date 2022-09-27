@@ -30,7 +30,7 @@ public class AggregationServer {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        // recoveryFeedQueue();
+        System.out.println("[AggregationServer]: Aggregation server start");
 
         lamportClock = new LamportClock();
         lamportClockQueue = new PriorityBlockingQueue<>(20, Comparator.comparing(RequestMessage::getTime));
@@ -166,7 +166,7 @@ class GeneralRequestHandler implements Runnable {
     }
 
     private void processGetFeed() {
-        System.out.println("client connected");
+        System.out.println("[AggregationServer]: Client connected");
         ClientHandler clientThread;
         try {
             clientThread = new ClientHandler(requestSocket, lamportClock);
@@ -178,7 +178,7 @@ class GeneralRequestHandler implements Runnable {
     }
 
     private void processPutContent(DataInputStream dataInputStream) {
-        System.out.println("content server connected");
+        System.out.println("[AggregationServer]: Content server connected");
         PutFeedHandler putFeedHandler;
         try {
             putFeedHandler = new PutFeedHandler(requestSocket,
@@ -192,7 +192,7 @@ class GeneralRequestHandler implements Runnable {
     }
 
     private void processPutHeartBeat(DataInputStream dataInputStream) {
-        System.out.println("content server heart beat");
+        System.out.println("[AggregationServer]: Received content server heart beat");
         int contentServerIdByteLength;
         try {
             contentServerIdByteLength = dataInputStream.readInt();
@@ -244,7 +244,7 @@ class GeneralRequestHandler implements Runnable {
     private void recoveryFeedQueue() {
 
         File aggregatedXML = new File(AGGREGATED_FILE_NAME);
-        if (aggregatedXML.isFile()) {
+        if (aggregatedXML.isFile() && aggregatedXML.length() != 0) {
             feedQueue = XMLParser.getFeedQueueFromAggregatedXML(aggregatedXML);
             for (Feed feed : feedQueue) {
                 contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));

@@ -28,7 +28,7 @@ public class Aggregator implements Runnable {
 
                     if (message.operationType == 99) {
                         // content server disconnected
-                        System.out.println("content server disconnected.");
+                        // System.out.println("content server disconnected.");
                     } else if (message.operationType == 1) {
                         FileOutputStream tempXMLFileOutputStream = new FileOutputStream(
                                 "AggregationServerXML/" + message.contentServerId + ".xml");
@@ -48,13 +48,10 @@ public class Aggregator implements Runnable {
                         }
 
                         // construct the XML file based on the feed queue
-                        System.out.println("Writing the file...");
-                        // os.write(message.payload);
+                        System.out.println("[AggregationServer]: Constructing the aggregation XML file...");
                         XMLCreator.createXML(feedQueue);
 
                         tempXMLFile.delete();
-
-                        // construct the XML file based on the txt file
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();

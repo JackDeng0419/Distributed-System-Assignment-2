@@ -30,7 +30,8 @@ public class ClientHandler implements Runnable {
 
             // read the file content into myByteArray
             fis.read(XMLByte);
-            System.out.println("Sending " + FILE_PATH_NAME.substring(2) + "(" + XMLByte.length + " bytes)");
+            System.out.println("[AggregationServer]: Sending " + FILE_PATH_NAME.substring(2) + "(" + XMLByte.length
+                    + " bytes) to GETClient");
 
             // write the GET response
             String headerFirstLine = "HTTP/1.1 201 OK";
@@ -48,7 +49,7 @@ public class ClientHandler implements Runnable {
             out.writeInt(XMLByte.length);
             out.write(XMLByte);
 
-            System.out.println("The aggregated feed has been sent.");
+            System.out.println("[AggregationServer]: The aggregated feed has been sent.");
             client.close();
             out.close();
         } catch (IOException e) {

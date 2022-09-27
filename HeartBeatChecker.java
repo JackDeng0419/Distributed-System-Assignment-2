@@ -21,7 +21,7 @@ public class HeartBeatChecker extends TimerTask {
 
     @Override
     public void run() {
-        System.out.println("Feed expired!");
+        System.out.println("[AggregationServer]: Feed from ContentServer:" + contentServerId + " expired!");
         feedQueue.removeIf(feed -> {
             return feed.getContentServerId().equals(contentServerId);
         });
@@ -31,7 +31,7 @@ public class HeartBeatChecker extends TimerTask {
         }
         contentServersHeartBeatTimersMap.remove(contentServerId);
         contentServersMap.remove(contentServerId);
-        System.out.println("Feed from " + contentServerId + " has been removed!");
+        System.out.println("[AggregationServer]: Feed from ContentServer:" + contentServerId + " has been removed!");
     }
 
 }

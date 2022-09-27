@@ -7,12 +7,9 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.Timer;
+import java.util.TimerTask;
 
-/**
- * contentServer
- * read the command line to find the server name and port number (in URL format)
- * and will send a GET request for the ATOM feed
- */
 public class GETClient {
 
     private static Socket server;
@@ -21,40 +18,51 @@ public class GETClient {
     private static Deque<Feed> feedQueue = new LinkedList<Feed>();
     private static String clientId;
     private static LamportClock lamportClock;
+    private static boolean receivedResponse = false;
+    private static Timer retryTimer;
+    private static int retryCount = 0;
 
+    /*
+     * args[0]: URL of AG (127.0.0.1:4567)
+     * args[1]: client id
+     */
     public static void main(String[] args) throws IOException {
 
         // receive user input
         String URL = args[0];
         clientId = args[1];
 
-        // get the domain and port
+        // get the domain and port of AG
         String[] domainPort = URL.split(":", 2);
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
+        // create the socket of AG
         server = new Socket(SERVER_IP, SERVER_PORT);
 
         // initialize the lamport clock
         lamportClock = new LamportClock(clientId, GeneralDefinition.HOST_TYPE_GET_CLIENT);
 
-        // sending the get request
+        // sending the get request to AG
         DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
         sendGETRequest(dataOutputStream);
 
-        // receiving the response from the aggregation server
+        // start the retry timer
+        retryTimer = new Timer();
+        retryTimer.schedule((new GETClient()).new ErrorRetry(), 3000L, 3000L);
+
+        // receiving the response from AG
         byte[] responseXMLByte = receiveServerResponse();
 
+        // present the response
         if (responseXMLByte.length != 0) {
-
             // parse the responded XML file
             feedQueue = generateFeedQueue(responseXMLByte);
-
             // print the parsed XML content
             printAggregatedFeed();
         }
-        server.close();
 
+        server.close();
     }
 
     private static void printAggregatedFeed() {
@@ -79,6 +87,7 @@ public class GETClient {
     }
 
     private static void sendGETRequest(DataOutputStream dataOutputStream) {
+
         lamportClock.increaseTime();
 
         String headerFirstLine = "GET /getFeed HTTP/1.1";
@@ -99,6 +108,7 @@ public class GETClient {
             dataOutputStream.write(headerThirdLineByte);
             dataOutputStream.writeInt(lamportClockInfoByte.length);
             dataOutputStream.write(lamportClockInfoByte);
+            // dataOutputStream.close();
         } catch (IOException e) {
             System.out.println("GETClient failed to send get request.");
             System.out.println("Detail: ");
@@ -107,6 +117,7 @@ public class GETClient {
     }
 
     private static byte[] receiveServerResponse() {
+
         try (DataInputStream dataInputStream = new DataInputStream(server.getInputStream())) {
             int responseHeaderFirstLineLength = dataInputStream.readInt();
             byte[] responseHeaderFirstLineByte = new byte[responseHeaderFirstLineLength];
@@ -126,6 +137,10 @@ public class GETClient {
             int responseXMLLength = dataInputStream.readInt();
             byte[] responseXMLByte = new byte[responseXMLLength];
             dataInputStream.readFully(responseXMLByte, 0, responseXMLLength);
+
+            if (null != retryTimer) {
+                retryTimer.cancel();
+            }
             return responseXMLByte;
         } catch (IOException e) {
             System.out.println("GETClient failed to receive server response.");
@@ -149,5 +164,32 @@ public class GETClient {
         Deque<Feed> feedQueue = XMLParser.getFeedQueueFromAggregatedXML(outputFile);
         outputFile.delete();
         return feedQueue;
+    }
+
+    /**
+     * InnerGETClient
+     */
+    public class ErrorRetry extends TimerTask {
+
+        @Override
+        public void run() {
+            GETClient.retryCount++;
+            if (GETClient.retryCount > 3) {
+                // exit the program
+                retryTimer.cancel();
+                System.exit(0);
+            } else {
+                System.out.println("[GETClient:" + clientId + "]: " + "Resend get request " + retryCount);
+                try {
+                    DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
+                    GETClient.sendGETRequest(dataOutputStream);
+                } catch (IOException e) {
+                    System.out.println("The AG socket failed to close");
+                    e.printStackTrace();
+                }
+            }
+
+        }
+
     }
 }
