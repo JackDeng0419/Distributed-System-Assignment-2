@@ -27,7 +27,7 @@ public class ContentServer {
         System.out.println("[ContentServer:" + contentServerId + "]: Content server is started");
 
         // initialize the lamport clock
-        lamportClock = new LamportClock(contentServerId, GeneralDefinition.HOST_TYPE_CONTENT_SERVER);
+        lamportClock = new LamportClock(contentServerId, Constant.HOST_TYPE_CONTENT_SERVER);
 
         // get the domain and port
         String[] domainPort = URL.split(":", 2);

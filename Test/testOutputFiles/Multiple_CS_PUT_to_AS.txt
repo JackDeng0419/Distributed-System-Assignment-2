@@ -1,0 +1,4 @@
+[GETClient:GC1]: Resend get request 1
+[GETClient:GC1]: Resend get request 2
+[GETClient:GC1]: Resend get request 3
+[GETClient:GC1]: No response from AG. Please make sure the AG is working.

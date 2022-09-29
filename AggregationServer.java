@@ -94,7 +94,7 @@ public class AggregationServer {
 
             return requestTypeInfo;
         } catch (IOException e) {
-            System.out.println("Server is not working");
+            System.out.println("Aggregation Server failed to parse request information.");
             e.printStackTrace();
         }
 
@@ -114,7 +114,7 @@ class GeneralRequestHandler implements Runnable {
     private final String AGGREGATED_FILE_NAME = "ATOMFeed.xml";
     private ConcurrentHashMap<String, Timestamp> contentServersMap = new ConcurrentHashMap<>();
     private ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap = new ConcurrentHashMap<>();
-    private BlockingQueue<Message> aggregatorQueue;
+    private BlockingQueue<AggregateMessage> aggregatorQueue;
 
     public GeneralRequestHandler(PriorityBlockingQueue<RequestMessage> lamportCloBlockingQueue,
             LamportClock lamportClock) {
@@ -125,8 +125,9 @@ class GeneralRequestHandler implements Runnable {
         recoveryFeedQueue();
 
         // initialize the file handler
-        aggregatorQueue = new LinkedBlockingDeque<Message>();
-        Aggregator aggregator = new Aggregator(aggregatorQueue, AGGREGATED_FILE_NAME, feedQueue);
+        aggregatorQueue = new LinkedBlockingDeque<AggregateMessage>();
+        Aggregator aggregator = new Aggregator(aggregatorQueue, AGGREGATED_FILE_NAME, feedQueue,
+                contentServersHeartBeatTimersMap, contentServersMap);
         new Thread(aggregator).start();
     }
 
@@ -203,13 +204,13 @@ class GeneralRequestHandler implements Runnable {
             if (contentServersHeartBeatTimersMap.get(contentServerId) == null) {
                 Timer timer = new Timer();
                 timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                        contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
                 contentServersHeartBeatTimersMap.put(contentServerId, timer);
             } else {
                 contentServersHeartBeatTimersMap.get(contentServerId).cancel();
                 Timer timer = new Timer();
                 timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                        contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
                 contentServersHeartBeatTimersMap.put(contentServerId, timer);
             }
 
@@ -250,7 +251,7 @@ class GeneralRequestHandler implements Runnable {
                 contentServersMap.put(feed.getContentServerId(), Timestamp.from(Instant.now()));
                 Timer timer = new Timer();
                 timer.schedule(new HeartBeatChecker(contentServersMap, feed.getContentServerId(), feedQueue,
-                        contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
                 contentServersHeartBeatTimersMap.put(feed.getContentServerId(), timer);
             }
         }

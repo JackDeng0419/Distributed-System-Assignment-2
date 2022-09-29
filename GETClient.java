@@ -5,6 +5,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Timer;
@@ -53,7 +55,7 @@ public class GETClient {
         }
 
         // initialize the lamport clock
-        lamportClock = new LamportClock(clientId, GeneralDefinition.HOST_TYPE_GET_CLIENT);
+        lamportClock = new LamportClock(clientId, Constant.HOST_TYPE_GET_CLIENT);
 
         // sending the get request to AG
         DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
@@ -78,7 +80,9 @@ public class GETClient {
     }
 
     private static void printAggregatedFeed() {
-        for (Feed feed : feedQueue) {
+        ArrayList<Feed> feedArrayList = new ArrayList<>(feedQueue);
+        feedArrayList.sort(Comparator.comparing(Feed::getContentServerId));
+        for (Feed feed : feedArrayList) {
             System.out.println("Title: " + feed.getTitle());
             System.out.println("Subtitle: " + feed.getSubtitle());
             System.out.println("Link: " + feed.getLink());

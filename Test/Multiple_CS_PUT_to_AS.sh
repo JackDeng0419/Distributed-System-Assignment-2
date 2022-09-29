@@ -1,7 +1,7 @@
 #!/bin/bash
 
-verification_file="./verificationFiles/Multiple_CS_PUT_to_AS.xml"
-output_file="../ATOMFeed.xml" 
+verification_file="./verificationFiles/Multiple_CS_PUT_to_AS.txt"
+output_file="./testOutputFiles/Multiple_CS_PUT_to_AS.txt" 
 
 cd ../
 # start AggregationServer in the background
@@ -13,23 +13,19 @@ sleep 1
 
 # start 3 content servers with id CS1, CS2, and CS3 in the background
 java ContentServer 127.0.0.1:4567 contentServerFeed1.txt CS1 &
-sleep 100m
-
 CS1_PID=$!
 
-java ContentServer 127.0.0.1:4567 contentServerFeed1.txt CS2 &
-sleep 100m
-
+java ContentServer 127.0.0.1:4567 contentServerFeed2.txt CS2 &
 CS2_PID=$!
 
-java ContentServer 127.0.0.1:4567 contentServerFeed1.txt CS3 &
-sleep 100m
-
+java ContentServer 127.0.0.1:4567 contentServerFeed3.txt CS3 &
 CS3_PID=$!
 
+sleep 3
 
-
-sleep 7
+# start a user to get the feed
+java GETClient 127.0.0.1:4567 GC1 > ./Test/testOutputFiles/Multiple_CS_PUT_to_AS.txt
+sleep 1
 
 kill $AG_PID
 kill $CS1_PID
@@ -50,4 +46,4 @@ else
     printf 'Multiple content server putting content test failed!\n'
 fi 
 
-# ./reset_data.sh >> /dev/null 2>&1
+./reset_data.sh >> /dev/null 2>&1

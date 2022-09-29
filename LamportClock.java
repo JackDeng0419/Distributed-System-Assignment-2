@@ -22,9 +22,9 @@ public class LamportClock {
         this.id = id;
         this.hostType = hostType;
 
-        if (hostType == GeneralDefinition.HOST_TYPE_GET_CLIENT) {
+        if (hostType == Constant.HOST_TYPE_GET_CLIENT) {
             this.lamportClockFolder = "GETClientLamportClock/";
-        } else if (hostType == GeneralDefinition.HOST_TYPE_CONTENT_SERVER) {
+        } else if (hostType == Constant.HOST_TYPE_CONTENT_SERVER) {
             this.lamportClockFolder = "ContentServerLamportClock/";
         }
 

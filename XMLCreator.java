@@ -25,7 +25,7 @@ import org.xml.sax.SAXException;
 
 public class XMLCreator {
 
-    private static String AggregationServerXML = GeneralDefinition.AGGREGATION_SERVER_XML_FILENAME;
+    private static String AggregationServerXML = Constant.AGGREGATION_SERVER_XML_FILENAME;
 
     public XMLCreator() {
 
@@ -72,6 +72,7 @@ public class XMLCreator {
     }
 
     public static void createXML(Deque<Feed> feedQueue) {
+        
         File inputFile = new File(AggregationServerXML);
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder;

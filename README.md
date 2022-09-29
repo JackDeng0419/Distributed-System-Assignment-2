@@ -20,19 +20,21 @@ Run `./compile.sh`
 **Notice:** Before starting the CS or GC, please make sure the AG is running. 
 
 ## 3. Test cases
+To run the following test scripts, please go to the *Test* directory by running `cd ./Test`.
+
 1. One GC getting feed from the AG
-    - Run: `./Test/Client_GET_to_AS.sh`
+    - Run: `./Client_GET_to_AS.sh`
 2. Multiple GCs getting feed from the AG
-    - Run: `./Test/Multiple_Client_GET_to_AS.sh`
+    - Run: `./Multiple_Client_GET_to_AS.sh`
 3. One CS putting feed to the AG
-    - Run: `./Test/CS_PUT_to_AS.sh`
+    - Run: `./CS_PUT_to_AS.sh`
 4. Multiple CSs putting feed to the AG
-    - Run: `./Test/Multiple_CS_PUT_to_AS.sh`
+    - Run: `./Multiple_CS_PUT_to_AS.sh`
 5. CS heartbeat signal
-    - Run: `./Test/CS_Heartbeat.sh`
+    - Run: `./CS_Heartbeat.sh`
 6. AG recovery
-    - Run: `./Test/AG_Recovery.sh`
+    - Run: `./AG_Recovery.sh`
 6. GC connection retry
-    - Run: `./Test/Client_GET_connection_retry.sh`
+    - Run: `./Client_GET_connection_retry.sh`
 7. CS connection retry
-    - Run: `./Test/CS_connection_retry.sh`
+    - Run: `./CS_connection_retry.sh`

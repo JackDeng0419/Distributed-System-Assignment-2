@@ -16,7 +16,7 @@ public class PutFeedHandler implements Runnable {
 
     private Socket contentServer;
     private DataOutputStream out;
-    private BlockingQueue<Message> aggregatorQueue;
+    private BlockingQueue<AggregateMessage> aggregatorQueue;
     private DataInputStream dataInputStream;
     private ConcurrentHashMap<String, Timestamp> contentServersMap;
     private Deque<Feed> feedQueue;
@@ -25,7 +25,7 @@ public class PutFeedHandler implements Runnable {
     private LamportClock lamportClock;
     private byte[] payload;
 
-    public PutFeedHandler(Socket contentServerSocket, BlockingQueue<Message> aggregatorQueue,
+    public PutFeedHandler(Socket contentServerSocket, BlockingQueue<AggregateMessage> aggregatorQueue,
             DataInputStream dataInputStream, ConcurrentHashMap<String, Timestamp> contentServersMap,
             Deque<Feed> feedQueue,
             ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap, LamportClock lamportClock)
@@ -49,7 +49,7 @@ public class PutFeedHandler implements Runnable {
         Feed feed = generateFeedFromPayload();
 
         // construct the message object for Aggregator
-        Message message = new Message(GeneralDefinition.PUT_FEED, contentServerId, payload, feed);
+        AggregateMessage message = new AggregateMessage(Constant.PUT_FEED, contentServerId, feed);
 
         // add message to the priority queue, and then the Aggregator will process the
         // message
@@ -78,6 +78,14 @@ public class PutFeedHandler implements Runnable {
 
             // reading payload
             int payloadLength = dataInputStream.readInt();
+            if (payloadLength == 0) {
+                String headerFirstLine = "HTTP/1.1 204 no content";
+                byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
+                out.writeInt(headerFirstLineByte.length);
+                out.write(headerFirstLineByte);
+
+                return;
+            }
             payload = new byte[payloadLength];
             dataInputStream.readFully(payload, 0, payloadLength);
         } catch (IOException e) {
@@ -92,6 +100,7 @@ public class PutFeedHandler implements Runnable {
             FileOutputStream tempXMLFileOutputStream = new FileOutputStream(tempXMLFile);
             tempXMLFileOutputStream.write(payload);
             Feed feed = XMLParser.parseXMLFile(tempXMLFile); // TODO: parseXMLFile should check the format of XML
+            feed.setContentServerId(contentServerId);
 
             tempXMLFileOutputStream.close();
             tempXMLFile.delete();
@@ -118,7 +127,7 @@ public class PutFeedHandler implements Runnable {
                 // set a timer for checking heart beat signal
                 Timer timer = new Timer();
                 timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                        contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
                 contentServersHeartBeatTimersMap.put(contentServerId, timer);
 
                 headerFirstLine = "HTTP/1.1 201 OK";
@@ -128,7 +137,7 @@ public class PutFeedHandler implements Runnable {
                 }
                 Timer timer = new Timer();
                 timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                        contentServersHeartBeatTimersMap), 12000L);
+                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
                 contentServersHeartBeatTimersMap.put(contentServerId, timer);
                 contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
                 headerFirstLine = "HTTP/1.1 200 OK";

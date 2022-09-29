@@ -1,20 +1,17 @@
-public class Message {
+public class AggregateMessage {
 
     public int operationType; // 1: PUT content; 99: Content server disconnected;
     public String contentServerId;
-    public byte[] payload;
     public Feed feed;
 
-    public Message(int operationType, String contentServerId, byte[] payload) {
+    public AggregateMessage(int operationType, String contentServerId, Feed feed) {
         this.contentServerId = contentServerId;
         this.operationType = operationType;
-        this.payload = payload;
+        this.feed = feed;
     }
 
-    public Message(int operationType, String contentServerId, byte[] payload, Feed feed) {
+    public AggregateMessage(int operationType, String contentServerId) {
         this.contentServerId = contentServerId;
         this.operationType = operationType;
-        this.payload = payload;
-        this.feed = feed;
     }
 }
