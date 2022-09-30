@@ -1,5 +1,7 @@
 #!/bin/bash
 
+./reset_data.sh >> /dev/null 2>&1
+
 verification_file="./verificationFiles/Client_GET_to_AS.txt"
 output_file="./testOutputFiles/Client_GET_to_AS.txt" 
 

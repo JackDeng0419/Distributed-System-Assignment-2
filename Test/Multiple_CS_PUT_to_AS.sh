@@ -1,5 +1,7 @@
 #!/bin/bash
 
+./reset_data.sh >> /dev/null 2>&1
+
 verification_file="./verificationFiles/Multiple_CS_PUT_to_AS.txt"
 output_file="./testOutputFiles/Multiple_CS_PUT_to_AS.txt" 
 

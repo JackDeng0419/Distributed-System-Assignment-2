@@ -2,8 +2,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 import java.util.TimerTask;
 
 public class HeartBeatSender extends TimerTask {
@@ -29,71 +27,42 @@ public class HeartBeatSender extends TimerTask {
 
             lamportClock.increaseTime();
 
+            /*
+             * sending the heart beat signal
+             */
             // write the PUT header
-            String headerFirstLine = "PUT /putHeartBeat HTTP/1.1";
-            String headerSecondLine = "Host: " + SERVER_IP + ":" + SERVER_PORT;
-            String headerThirdLine = "Accept: */*";
-            String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
-
-            byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
-            byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
-            byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
-            byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
-
-            dataOutputStream.writeInt(headerFirstLineByte.length);
-            dataOutputStream.write(headerFirstLineByte);
-            dataOutputStream.writeInt(headerSecondLineByte.length);
-            dataOutputStream.write(headerSecondLineByte);
-            dataOutputStream.writeInt(headerThirdLineByte.length);
-            dataOutputStream.write(headerThirdLineByte);
-            dataOutputStream.writeInt(lamportClockInfoByte.length);
-            dataOutputStream.write(lamportClockInfoByte);
+            HTTPUtils.sendString(dataOutputStream, "PUT /putHeartBeat HTTP/1.1");
+            HTTPUtils.sendString(dataOutputStream, "Host: " + SERVER_IP + ":" + SERVER_PORT);
+            HTTPUtils.sendString(dataOutputStream, "Accept: */*");
+            HTTPUtils.sendString(dataOutputStream, "LamportClock: " + lamportClock.getTime());
 
             // write content server id
-            byte[] contentServerIdByte = contentServerId.getBytes(Charset.forName("UTF-8"));
-
-            dataOutputStream.writeInt(contentServerIdByte.length);
-            dataOutputStream.write(contentServerIdByte);
+            HTTPUtils.sendString(dataOutputStream, contentServerId);
 
             // write heart beat content
-            String heartBeatString = "heart beat";
-            byte[] heartBeatByte = heartBeatString.getBytes(Charset.forName("UTF-8"));
+            HTTPUtils.sendString(dataOutputStream, "heart beat");
 
-            dataOutputStream.writeInt(heartBeatByte.length);
-            dataOutputStream.write(heartBeatByte);
-
-            // receiving the response from the aggregation server
+            /*
+             * receiving the response from the aggregation server
+             */
             DataInputStream dataInputStream = new DataInputStream(server.getInputStream());
-            int responseFirstLineLength = dataInputStream.readInt();
-            byte[] responseFirstLineByte = new byte[responseFirstLineLength];
-            dataInputStream.readFully(responseFirstLineByte, 0, responseFirstLineLength);
-            String responseFirstLine = new String(responseFirstLineByte);
+
+            // read the first line and the second line
+            String responseFirstLine = HTTPUtils.readString(dataInputStream);
             System.out.println(
                     "[ContentServer:" + contentServerId + "]: " + responseFirstLine + " AG received heart beat");
 
-            int responseSecondLineLength = dataInputStream.readInt();
-            byte[] responseSecondLineByte = new byte[responseSecondLineLength];
-            dataInputStream.readFully(responseSecondLineByte, 0, responseSecondLineLength);
+            HTTPUtils.readString(dataInputStream);
 
-            // receive and update lamport clock
-            int responseLamportClockLength = dataInputStream.readInt();
-            byte[] responseLamportClockByte = new byte[responseLamportClockLength];
-            dataInputStream.readFully(responseLamportClockByte, 0, responseLamportClockLength);
-            String responseLamportClock = new String(responseLamportClockByte);
+            // read and update lamport clock
+            String responseLamportClock = HTTPUtils.readString(dataInputStream);
             String[] tempStrings = responseLamportClock.split(": ");
             int newTime = Integer.parseInt(tempStrings[1]);
             lamportClock.update(newTime);
 
-            // dataOutputStream.close();
-            // server.close();
-        } catch (UnknownHostException e) {
-            // e.printStackTrace();
-            System.out.println("E1");
-        } catch (IOException e) {
-            // e.printStackTrace();
+        } catch (IOException e2) {
             System.out.println("[ContentServer:" + contentServerId + "]: Aggregation Server connection lost...");
         }
-
     }
 
 }

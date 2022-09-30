@@ -23,24 +23,22 @@ public class GETClient {
     private static Timer retryTimer;
     private static int receiveRetryCount = 0;
 
-    /*
-     * args[0]: URL of AG (127.0.0.1:4567)
-     * args[1]: client id
-     */
     public static void main(String[] args) throws IOException, InterruptedException {
 
         // receive user input
         String URL = args[0];
         clientId = args[1];
 
-        // get the domain and port of AG
+        // get the domain and port of aggregation server
         String[] domainPort = URL.split(":", 2);
         SERVER_IP = domainPort[0];
         SERVER_PORT = Integer.parseInt(domainPort[1]);
 
         // create the socket of AG
+        // if fail to connect to the aggregation server, retry every 2 seconds.
         for (int i = 0; i < 4; i++) {
             if (i == 3) {
+                // after 3 times of retry, exit the program
                 System.out.println("[GETClient:" + clientId + "]: "
                         + "Failed to connect to AG, please check whether AG is running.");
                 System.exit(-1);
@@ -61,7 +59,8 @@ public class GETClient {
         DataOutputStream dataOutputStream = new DataOutputStream(server.getOutputStream());
         sendGETRequest(dataOutputStream);
 
-        // start the retry timer
+        // start the retry timer, if not getting response in 3 seconds, resend the
+        // request every 3 seconds until receiving the response
         retryTimer = new Timer();
         retryTimer.schedule((new GETClient()).new ReceiveErrorRetry(), 3000L, 3000L);
 
@@ -79,6 +78,10 @@ public class GETClient {
         server.close();
     }
 
+    /*
+     * This methods output the feed content to the terminal according to the feed
+     * queue
+     */
     private static void printAggregatedFeed() {
         ArrayList<Feed> feedArrayList = new ArrayList<>(feedQueue);
         feedArrayList.sort(Comparator.comparing(Feed::getContentServerId));
@@ -102,6 +105,9 @@ public class GETClient {
         }
     }
 
+    /*
+     * This method sends the get request to the aggregation server
+     */
     private static void sendGETRequest(DataOutputStream dataOutputStream) {
 
         lamportClock.increaseTime();
@@ -131,6 +137,9 @@ public class GETClient {
         }
     }
 
+    /*
+     * This method receives the response from the aggregation server
+     */
     private static byte[] receiveServerResponse() {
 
         try (DataInputStream dataInputStream = new DataInputStream(server.getInputStream())) {
@@ -165,6 +174,9 @@ public class GETClient {
         }
     }
 
+    /*
+     * This method generates a feed queue from the received XML bytes.
+     */
     private static Deque<Feed> generateFeedQueue(byte[] responseXMLByte) {
         // write the XML into a temp file
         File outputFile = new File("GETClientXML/" + clientId + ".xml");
@@ -182,7 +194,8 @@ public class GETClient {
     }
 
     /**
-     * InnerGETClient
+     * This class is a timer task that resends the request when does not get a
+     * response from the aggregation server
      */
     public class ReceiveErrorRetry extends TimerTask {
 

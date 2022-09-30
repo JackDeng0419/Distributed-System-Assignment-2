@@ -1,5 +1,7 @@
 #!/bin/bash
 
+./reset_data.sh >> /dev/null 2>&1
+
 verification_file="./verificationFiles/Multiple_Client_GET_to_AS.txt"
 output_file_GC1="./testOutputFiles/Multiple_Client_GET_to_AS_GC1.txt" 
 output_file_GC2="./testOutputFiles/Multiple_Client_GET_to_AS_GC2.txt" 

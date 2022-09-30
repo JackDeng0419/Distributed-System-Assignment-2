@@ -2,6 +2,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.Charset;
@@ -91,20 +92,32 @@ public class ContentServer {
         byte[] contentServerIdByte = contentServerId.getBytes(Charset.forName("UTF-8"));
 
         // write feed content
-        byte[] feedContentByte = null;
         File inputFile = new File(inputFilename);
-        String xMLFilename = XMLCreator.createXML(inputFile, contentServerId);
-        File xMLFile = new File(xMLFilename);
+        byte[] feedContentByte = null;
+        if (inputFile.length() != 0) {
+            String xMLFilename = XMLCreator.createXML(inputFile, contentServerId);
+            File xMLFile = new File(xMLFilename);
 
-        try {
-            FileInputStream fis = new FileInputStream(xMLFile);
-            feedContentByte = new byte[(int) xMLFile.length()];
-            fis.read(feedContentByte);
-            fis.close();
-            xMLFile.delete();
-        } catch (IOException e1) {
-            System.out.println("ContentServer failed to read the XML temp file.");
-            e1.printStackTrace();
+            try {
+                FileInputStream fis = new FileInputStream(xMLFile);
+                feedContentByte = new byte[(int) xMLFile.length()];
+                fis.read(feedContentByte);
+                fis.close();
+                xMLFile.delete();
+            } catch (IOException e1) {
+                System.out.println("ContentServer failed to read the XML temp file.");
+                e1.printStackTrace();
+            }
+        } else {
+            FileInputStream fileInputStream;
+            try {
+                fileInputStream = new FileInputStream(inputFile);
+                feedContentByte = new byte[(int) inputFile.length()];
+                fileInputStream.read(feedContentByte);
+                fileInputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         try {
@@ -118,7 +131,7 @@ public class ContentServer {
             dataOutputStream.write(lamportClockInfoByte);
             dataOutputStream.writeInt(contentServerIdByte.length);
             dataOutputStream.write(contentServerIdByte);
-            dataOutputStream.writeInt(feedContentByte.length);
+            dataOutputStream.writeInt(feedContentByte == null ? 0 : feedContentByte.length);
             dataOutputStream.write(feedContentByte);
         } catch (IOException e) {
             System.out.println("ContentServer failed to send put feed request.");
@@ -137,19 +150,25 @@ public class ContentServer {
             String responseFirstLine = new String(responseFirstLineByte);
             System.out.println("[ContentServer:" + contentServerId + "]: " + responseFirstLine);
 
-            responseSecondLineLength = dataInputStream.readInt();
-            byte[] responseSecondLineByte = new byte[responseSecondLineLength];
-            dataInputStream.readFully(responseSecondLineByte, 0, responseSecondLineLength);
-            String responseSecondLine = new String(responseSecondLineByte);
-            System.out.println("[ContentServer:" + contentServerId + "]: " + responseSecondLine);
+            String reCode = responseFirstLine.split(" ", 3)[1];
 
-            int responseLamportClockLength = dataInputStream.readInt();
-            byte[] responseLamportClockByte = new byte[responseLamportClockLength];
-            dataInputStream.readFully(responseLamportClockByte, 0, responseLamportClockLength);
-            String responseLamportClock = new String(responseLamportClockByte);
-            String[] tempStrings = responseLamportClock.split(": ");
-            int newTime = Integer.parseInt(tempStrings[1]);
-            lamportClock.update(newTime);
+            if (reCode.equals("200") || reCode.equals("201")) {
+                responseSecondLineLength = dataInputStream.readInt();
+                byte[] responseSecondLineByte = new byte[responseSecondLineLength];
+                dataInputStream.readFully(responseSecondLineByte, 0, responseSecondLineLength);
+                String responseSecondLine = new String(responseSecondLineByte);
+                System.out.println("[ContentServer:" + contentServerId + "]: " + responseSecondLine);
+
+                int responseLamportClockLength = dataInputStream.readInt();
+                byte[] responseLamportClockByte = new byte[responseLamportClockLength];
+                dataInputStream.readFully(responseLamportClockByte, 0, responseLamportClockLength);
+                String responseLamportClock = new String(responseLamportClockByte);
+                String[] tempStrings = responseLamportClock.split(": ");
+                int newTime = Integer.parseInt(tempStrings[1]);
+                lamportClock.update(newTime);
+            } else {
+                System.exit(-1);
+            }
 
         } catch (IOException e) {
             System.out.println("ContentServer failed to receive aggregation server's response.");

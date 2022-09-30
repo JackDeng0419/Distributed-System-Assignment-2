@@ -19,8 +19,16 @@ Run `./compile.sh`
         ```
 **Notice:** Before starting the CS or GC, please make sure the AG is running. 
 
+### 2.1 An example 
+1. Start an AG: `java AggregationServer`
+2. Start a CS and upload a feed: `java ContentServer 127.0.0.1:4567 contentServerFeed1.txt CS1`
+3. Start a GC to get the feed: `java GETClient 127.0.0.1:4567 GC1`
+
 ## 3. Test cases
+
 To run the following test scripts, please go to the *Test* directory by running `cd ./Test`.
+
+Before running the test script, it is recommended to run the `./reset_data.sh` to reset the state of the system. 
 
 1. One GC getting feed from the AG
     - Run: `./Client_GET_to_AS.sh`
@@ -34,7 +42,15 @@ To run the following test scripts, please go to the *Test* directory by running 
     - Run: `./CS_Heartbeat.sh`
 6. AG recovery
     - Run: `./AG_Recovery.sh`
-6. GC connection retry
+7. GC connection retry
     - Run: `./Client_GET_connection_retry.sh`
-7. CS connection retry
+8. CS connection retry
     - Run: `./CS_connection_retry.sh`
+9. AG responds 204 to no content request
+    - Run: `./AG_respond_204`
+10. AG responds 500 to not ATOM feed
+    - RUN: `./AG_respond_500`
+
+Or you can run a overall test that covers all the test cases above: 
+Run: `./test_all.sh`
+

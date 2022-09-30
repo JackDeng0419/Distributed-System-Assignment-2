@@ -1,3 +1,7 @@
+
+/* 
+ * This class is to store the information of the entry item in a feed.
+ */
 public class FeedEntry {
     private String title;
     private String link;
@@ -13,7 +17,6 @@ public class FeedEntry {
     public void setAuthor(String author) {
         this.author = author;
     }
-
 
     public String getTitle() {
         return title;
@@ -53,5 +56,19 @@ public class FeedEntry {
 
     public void setSummary(String summary) {
         this.summary = summary;
+    }
+
+    public boolean isATOMXMLFormat() {
+
+        if (isEmptyString(title) || isEmptyString(link) || isEmptyString(id) || isEmptyString(updated)
+                || isEmptyString(summary)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean isEmptyString(String str) {
+        return str == null || str.isBlank() || str.isEmpty();
     }
 }

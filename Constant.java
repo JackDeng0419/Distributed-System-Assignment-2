@@ -1,3 +1,4 @@
+/* This class define some constants of the system */
 public class Constant {
     public final static int PUT_FEED = 1;
     public final static int CONTENT_SERVER_DISCONNECTION = 99;

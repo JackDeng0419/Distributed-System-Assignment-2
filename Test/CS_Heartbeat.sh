@@ -1,5 +1,7 @@
 #!/bin/bash
 
+./reset_data.sh >> /dev/null 2>&1
+
 verification_file="./verificationFiles/CS_Heartbeat.txt"
 output_file="./testOutputFiles/CS_Heartbeat.txt" 
 

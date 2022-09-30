@@ -1,5 +1,7 @@
 #!/bin/bash
 
+./reset_data.sh >> /dev/null 2>&1
+
 verification_file="./verificationFiles/CS_connection_retry.txt"
 output_file="./testOutputFiles/CS_connection_retry.txt" 
 

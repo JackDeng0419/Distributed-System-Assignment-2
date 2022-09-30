@@ -4,10 +4,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Deque;
 import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,28 +13,28 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PutFeedHandler implements Runnable {
 
     private Socket contentServer;
-    private DataOutputStream out;
+    private DataOutputStream dataOutputStream;
     private BlockingQueue<AggregateMessage> aggregatorQueue;
     private DataInputStream dataInputStream;
     private ConcurrentHashMap<String, Timestamp> contentServersMap;
-    private Deque<Feed> feedQueue;
-    private ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap;
+    private ConcurrentHashMap<String, Timer> heartbeatTimersMap;
     private String contentServerId;
     private LamportClock lamportClock;
     private byte[] payload;
+    private boolean isATOMXMLFormat = true;
+    private boolean isNoContent = false;
 
     public PutFeedHandler(Socket contentServerSocket, BlockingQueue<AggregateMessage> aggregatorQueue,
             DataInputStream dataInputStream, ConcurrentHashMap<String, Timestamp> contentServersMap,
-            Deque<Feed> feedQueue,
-            ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap, LamportClock lamportClock)
+            ConcurrentHashMap<String, Timer> heartbeatTimersMap, LamportClock lamportClock)
             throws IOException {
         this.contentServer = contentServerSocket;
         this.aggregatorQueue = aggregatorQueue;
         this.dataInputStream = dataInputStream;
         this.contentServersMap = contentServersMap;
-        this.contentServersHeartBeatTimersMap = contentServersHeartBeatTimersMap;
+        this.heartbeatTimersMap = heartbeatTimersMap;
         this.lamportClock = lamportClock;
-        out = new DataOutputStream(contentServer.getOutputStream());
+        dataOutputStream = new DataOutputStream(contentServer.getOutputStream());
     }
 
     @Override
@@ -45,21 +43,45 @@ public class PutFeedHandler implements Runnable {
         // get the content server id and the payload (upload content)
         readContentServerIdAndPayload();
 
+        // if no content is sent, return status code 204
+        if (isNoContent) {
+            System.out.println("[AggregationServer]: 204 - no content in the request");
+            try {
+                HTTPUtils.sendString(dataOutputStream, "HTTP/1.1 204 no content");
+            } catch (Exception e) {
+                System.out.println("Aggregation failed to send 204 response.");
+                e.printStackTrace();
+            }
+            return;
+        }
+
         // generate a feed object based on the payload
         Feed feed = generateFeedFromPayload();
 
-        // construct the message object for Aggregator
-        AggregateMessage message = new AggregateMessage(Constant.PUT_FEED, contentServerId, feed);
+        // if the feed is not ATOM XML format, return status code 500
+        if (feed == null || !isATOMXMLFormat) {
+            System.out.println("[AggregationServer]: 500 - not ATOM feed");
+            try {
+                HTTPUtils.sendString(dataOutputStream, "HTTP/1.1 500 not ATOM feed");
+            } catch (IOException e) {
+                System.out.println("Aggregation failed to send 500 response.");
+                e.printStackTrace();
+            }
+        } else {
 
-        // add message to the priority queue, and then the Aggregator will process the
-        // message
-        aggregatorQueue.add(message);
+            // construct the message object for Aggregator
+            AggregateMessage message = new AggregateMessage(Constant.PUT_FEED, contentServerId, feed);
 
-        // send the PUT response to content server
-        sendPutResponse();
+            // add message to the priority queue, which will then be processed by the
+            // aggregator
+            aggregatorQueue.add(message);
+
+            // send the PUT response to content server
+            sendPutFeedResponse();
+        }
 
         try {
-            out.close();
+            dataOutputStream.close();
             dataInputStream.close();
             contentServer.close();
         } catch (IOException e) {
@@ -67,25 +89,23 @@ public class PutFeedHandler implements Runnable {
         }
     }
 
+    /*
+     * this methods read the content server id and the payload from the request
+     */
     private void readContentServerIdAndPayload() {
-        // reading content server id
-        int contentServerIdByteLength;
         try {
-            contentServerIdByteLength = dataInputStream.readInt();
-            byte[] contentServerIdByte = new byte[contentServerIdByteLength];
-            dataInputStream.readFully(contentServerIdByte, 0, contentServerIdByteLength);
-            contentServerId = new String(contentServerIdByte);
+            // reading content server id
+            contentServerId = HTTPUtils.readString(dataInputStream);
 
             // reading payload
             int payloadLength = dataInputStream.readInt();
-            if (payloadLength == 0) {
-                String headerFirstLine = "HTTP/1.1 204 no content";
-                byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
-                out.writeInt(headerFirstLineByte.length);
-                out.write(headerFirstLineByte);
 
+            // if no content, return status code 204 and set isNoContent to true
+            if (payloadLength == 0) {
+                isNoContent = true;
                 return;
             }
+
             payload = new byte[payloadLength];
             dataInputStream.readFully(payload, 0, payloadLength);
         } catch (IOException e) {
@@ -94,17 +114,27 @@ public class PutFeedHandler implements Runnable {
         }
     }
 
+    /*
+     * return: the feed object generated from the payload
+     * 
+     * this method parses the payload and generate a feed object
+     */
     private Feed generateFeedFromPayload() {
         try {
+            // generate a temporary xml file of the sent content from the payload
             File tempXMLFile = new File("AggregationServerXML/" + contentServerId + ".xml");
             FileOutputStream tempXMLFileOutputStream = new FileOutputStream(tempXMLFile);
             tempXMLFileOutputStream.write(payload);
-            Feed feed = XMLParser.parseXMLFile(tempXMLFile); // TODO: parseXMLFile should check the format of XML
+
+            // parse the temporary file to get a feed object
+            Feed feed = XMLParser.parseXMLFile(tempXMLFile);
             feed.setContentServerId(contentServerId);
+
+            // check whether the feed is ATOM XML format
+            isATOMXMLFormat = feed.isATOMXMLFormat();
 
             tempXMLFileOutputStream.close();
             tempXMLFile.delete();
-
             return feed;
         } catch (IOException e) {
             System.out.println("PutFeedHandler failed to generate feed from payload.");
@@ -113,12 +143,12 @@ public class PutFeedHandler implements Runnable {
         return null;
     }
 
-    private void sendPutResponse() {
+    /*
+     * This method sends the response to the content server and set the timer for
+     * it
+     */
+    private void sendPutFeedResponse() {
         lamportClock.increaseTime();
-
-        String headerFirstLine;
-        String headerSecondLine = "The feed has been received.";
-        String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
 
         try {
             if (contentServersMap.get(contentServerId) == null) {
@@ -126,32 +156,29 @@ public class PutFeedHandler implements Runnable {
 
                 // set a timer for checking heart beat signal
                 Timer timer = new Timer();
-                timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
-                contentServersHeartBeatTimersMap.put(contentServerId, timer);
+                timer.schedule(new HeartBeatChecker(contentServerId, aggregatorQueue), 12000L);
+                heartbeatTimersMap.put(contentServerId, timer);
 
-                headerFirstLine = "HTTP/1.1 201 OK";
+                HTTPUtils.sendString(dataOutputStream, "HTTP/1.1 201 OK");
+
             } else {
-                if (contentServersHeartBeatTimersMap.get(contentServerId) != null) {
-                    contentServersHeartBeatTimersMap.get(contentServerId).cancel();
-                }
-                Timer timer = new Timer();
-                timer.schedule(new HeartBeatChecker(contentServersMap, contentServerId, feedQueue,
-                        contentServersHeartBeatTimersMap, aggregatorQueue), 12000L);
-                contentServersHeartBeatTimersMap.put(contentServerId, timer);
                 contentServersMap.put(contentServerId, Timestamp.from(Instant.now()));
-                headerFirstLine = "HTTP/1.1 200 OK";
-            }
-            byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
-            out.writeInt(headerFirstLineByte.length);
-            out.write(headerFirstLineByte);
-            byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
-            out.writeInt(headerSecondLineByte.length);
-            out.write(headerSecondLineByte);
 
-            byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
-            out.writeInt(lamportClockInfoByte.length);
-            out.write(lamportClockInfoByte);
+                // cancel the old timer
+                if (heartbeatTimersMap.get(contentServerId) != null) {
+                    heartbeatTimersMap.get(contentServerId).cancel();
+                }
+
+                // set a new timer for checking heart beat signal
+                Timer timer = new Timer();
+                timer.schedule(new HeartBeatChecker(contentServerId, aggregatorQueue), 12000L);
+                heartbeatTimersMap.put(contentServerId, timer);
+
+                HTTPUtils.sendString(dataOutputStream, "HTTP/1.1 200 OK");
+            }
+
+            HTTPUtils.sendString(dataOutputStream, "The feed has been received.");
+            HTTPUtils.sendString(dataOutputStream, "LamportClock: " + lamportClock.getTime());
 
         } catch (Exception e) {
             System.out.println("PutFeedHandler failed to send put response.");

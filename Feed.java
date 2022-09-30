@@ -1,9 +1,11 @@
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+/* 
+ * This class is used to store the information of a feed
+ */
 public class Feed {
     private String title;
     private String subtitle;
@@ -14,6 +16,10 @@ public class Feed {
     private ArrayList<FeedEntry> entries;
     private String contentServerId;
 
+    /*
+     * This constructor sets the attributes based on the input txt feed file of a
+     * content server
+     */
     public Feed(File inputFile, String contentServerId) throws FileNotFoundException {
         this.entries = new ArrayList<FeedEntry>();
         this.contentServerId = contentServerId;
@@ -84,6 +90,27 @@ public class Feed {
 
     public Feed() {
 
+    }
+
+    /*
+     * This method is used to check whether the feed follows the ATOM XML format
+     */
+    public boolean isATOMXMLFormat() {
+        if (isEmptyString(title) || isEmptyString(subtitle) || isEmptyString(link) || isEmptyString(updated)
+                || isEmptyString(author) || isEmptyString(id)) {
+            return false;
+        }
+        for (FeedEntry feedEntry : entries) {
+            if (!feedEntry.isATOMXMLFormat()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isEmptyString(String str) {
+        return str == null || str.isBlank() || str.isEmpty();
     }
 
     public String getContentServerId() {

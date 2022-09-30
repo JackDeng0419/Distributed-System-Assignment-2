@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#!/bin/bash
+./reset_data.sh >> /dev/null 2>&1
 
 # verification_file="./verificationFiles/Client_GET_to_AS.txt"
 output_file_before_die="./testOutputFiles/AG_Recovery_1.txt" 

@@ -1,17 +1,11 @@
-import java.sql.Timestamp;
-import java.util.Deque;
-import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class HeartBeatChecker extends TimerTask {
     private String contentServerId;
     private BlockingQueue<AggregateMessage> aggregatorQueue;
 
-    public HeartBeatChecker(ConcurrentHashMap<String, Timestamp> contentServersMap, String contentServerId,
-            Deque<Feed> feedQueue, ConcurrentHashMap<String, Timer> contentServersHeartBeatTimersMap,
-            BlockingQueue<AggregateMessage> aggregatorQueue) {
+    public HeartBeatChecker(String contentServerId, BlockingQueue<AggregateMessage> aggregatorQueue) {
         this.contentServerId = contentServerId;
         this.aggregatorQueue = aggregatorQueue;
     }
@@ -19,9 +13,11 @@ public class HeartBeatChecker extends TimerTask {
     @Override
     public void run() {
 
+        // generate an aggregate message of content server disconnection
         AggregateMessage feedExpiredMessage = new AggregateMessage(Constant.CONTENT_SERVER_DISCONNECTION,
                 contentServerId);
 
+        // add the message to the queue
         aggregatorQueue.add(feedExpiredMessage);
     }
 

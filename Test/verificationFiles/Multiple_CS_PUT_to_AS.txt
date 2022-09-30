@@ -68,11 +68,4 @@ Id: 2015-08-07T18:29:02Z
 Updated: urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6b
 Author: null
 Summary: here's another summary entry which a reader would normally use to work out if they wanted to read some more. It's quite handy.
-Entry:
-Title: 
-Link: 
-Id: 
-Updated: 
-Author: null
-Summary: 
 ====================
