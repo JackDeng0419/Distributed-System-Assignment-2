@@ -110,7 +110,7 @@ public class Feed {
     }
 
     private boolean isEmptyString(String str) {
-        return str == null || str.isBlank() || str.isEmpty();
+        return str == null || str.isEmpty() || str.trim().isEmpty();
     }
 
     public String getContentServerId() {

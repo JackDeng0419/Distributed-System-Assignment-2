@@ -134,6 +134,7 @@ public class XMLCreator {
         document.setXmlStandalone(true);
         transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "");
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
         transformer.setOutputProperty(OutputKeys.ENCODING, "iso-8859-1");
 
         // transform the DOM tree to XML and write to the output file
