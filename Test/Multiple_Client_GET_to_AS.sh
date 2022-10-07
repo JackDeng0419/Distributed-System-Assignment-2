@@ -37,7 +37,7 @@ cd Test
 echo 
 echo "========Test Result========"
 
-# compare the ATOMFeed.xml with the verification file
+# compare each GC output with the verification file
 
 passed='true'
 

@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
@@ -112,24 +111,11 @@ public class GETClient {
 
         lamportClock.increaseTime();
 
-        String headerFirstLine = "GET /getFeed HTTP/1.1";
-        String headerSecondLine = "Host: " + SERVER_IP + ":" + SERVER_PORT;
-        String headerThirdLine = "Accept: application/xml";
-        String lamportClockInfo = "LamportClock: " + lamportClock.getTime();
-        byte[] headerFirstLineByte = headerFirstLine.getBytes(Charset.forName("UTF-8"));
-        byte[] headerSecondLineByte = headerSecondLine.getBytes(Charset.forName("UTF-8"));
-        byte[] headerThirdLineByte = headerThirdLine.getBytes(Charset.forName("UTF-8"));
-        byte[] lamportClockInfoByte = lamportClockInfo.getBytes(Charset.forName("UTF-8"));
-
         try {
-            dataOutputStream.writeInt(headerFirstLineByte.length);
-            dataOutputStream.write(headerFirstLineByte);
-            dataOutputStream.writeInt(headerSecondLineByte.length);
-            dataOutputStream.write(headerSecondLineByte);
-            dataOutputStream.writeInt(headerThirdLineByte.length);
-            dataOutputStream.write(headerThirdLineByte);
-            dataOutputStream.writeInt(lamportClockInfoByte.length);
-            dataOutputStream.write(lamportClockInfoByte);
+            HTTPUtils.sendString(dataOutputStream, "GET /getFeed HTTP/1.1");
+            HTTPUtils.sendString(dataOutputStream, "Host: " + SERVER_IP + ":" + SERVER_PORT);
+            HTTPUtils.sendString(dataOutputStream, "Accept: application/xml");
+            HTTPUtils.sendString(dataOutputStream, "LamportClock: " + lamportClock.getTime());
         } catch (IOException e) {
             System.out.println("GETClient failed to send get request.");
             System.out.println("Detail: ");
@@ -143,25 +129,20 @@ public class GETClient {
     private static byte[] receiveServerResponse() {
 
         try (DataInputStream dataInputStream = new DataInputStream(server.getInputStream())) {
-            int responseHeaderFirstLineLength = dataInputStream.readInt();
-            byte[] responseHeaderFirstLineByte = new byte[responseHeaderFirstLineLength];
-            dataInputStream.readFully(responseHeaderFirstLineByte, 0, responseHeaderFirstLineLength);
-            String responseHeaderFirstLine = new String(responseHeaderFirstLineByte);
-
+            // read the response header
+            String responseHeaderFirstLine = HTTPUtils.readString(dataInputStream);
             System.out.println(responseHeaderFirstLine);
 
-            int responseLamportClockLength = dataInputStream.readInt();
-            byte[] responseLamportClockByte = new byte[responseLamportClockLength];
-            dataInputStream.readFully(responseLamportClockByte, 0, responseLamportClockLength);
-            String responseLamportClock = new String(responseLamportClockByte);
-            String[] tempStrings = responseLamportClock.split(": ");
-            int newTime = Integer.parseInt(tempStrings[1]);
-            lamportClock.update(newTime);
+            // read the lamport clock
+            String[] lamportStrings = HTTPUtils.readString(dataInputStream).split(": ");
+            lamportClock.update(Integer.parseInt(lamportStrings[1]));
 
+            // read the response aggregation XML
             int responseXMLLength = dataInputStream.readInt();
             byte[] responseXMLByte = new byte[responseXMLLength];
             dataInputStream.readFully(responseXMLByte, 0, responseXMLLength);
 
+            // cancel the retry timer for getting response
             if (null != retryTimer) {
                 retryTimer.cancel();
             }
@@ -188,6 +169,8 @@ public class GETClient {
             System.out.println("Detail:");
             e.printStackTrace();
         }
+
+        // generate the feed queue from the temp file
         Deque<Feed> feedQueue = XMLParser.getFeedQueueFromAggregatedXML(outputFile);
         outputFile.delete();
         return feedQueue;
